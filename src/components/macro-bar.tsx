@@ -17,6 +17,7 @@ export function MacroBar({
   color: string;
 }) {
   const pct = goalGrams > 0 ? Math.min(grams / goalGrams, 1) : 0;
+  const remaining = goalGrams - grams;
   const styles = createStyles(colors);
 
   return (
@@ -31,6 +32,11 @@ export function MacroBar({
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${pct * 100}%`, backgroundColor: color }]} />
       </View>
+      {goalGrams > 0 && (
+        <Text style={[styles.remaining, { color: remaining < 0 ? colors.danger : color }]}>
+          {remaining > 0 ? `${round(remaining)}g left` : remaining === 0 ? 'Goal met' : `${round(-remaining)}g over`}
+        </Text>
+      )}
     </View>
   );
 }
@@ -43,5 +49,6 @@ function createStyles(colors: ThemeColors) {
     value: { fontSize: 12, fontWeight: '700', color: colors.text },
     track: { height: 6, backgroundColor: colors.cardElevated, borderRadius: 3, overflow: 'hidden' },
     fill: { height: '100%', borderRadius: 3 },
+    remaining: { fontSize: 11, fontWeight: '700', marginTop: 5 },
   });
 }

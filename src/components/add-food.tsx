@@ -22,7 +22,7 @@ import Animated, {
 import { Spacing, ThemeColors } from '@/constants/theme';
 import { useCustomFoods, type CustomFood } from '@/context/custom-foods-context';
 import { MEALS, MealCategory, defaultMealForNow, type LogEntry } from '@/context/log-context';
-import { FoodProduct, searchFoods } from '@/lib/food';
+import { FoodProduct, fetchProductDetails, searchFoods } from '@/lib/food';
 import { round } from '@/lib/health';
 import { BarcodeScanner } from './barcode-scanner';
 import { Dropdown } from './dropdown';
@@ -212,6 +212,7 @@ function customFoodAsProduct(f: CustomFood): FoodProduct {
     name: f.name,
     serving: { label: '1 serving', kcal: f.kcal, protein: f.proteinG, carbs: f.carbsG, fat: f.fatG },
     per100g: null,
+    basisUnit: 'g',
   };
 }
 
@@ -223,8 +224,25 @@ function SearchTab({ colors, onStage }: { colors: ThemeColors; onStage: (entry: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<FoodProduct | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [focused, setFocused] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Search hits lack serving sizes, so pull the full record on selection.
+  const selectProduct = async (p: FoodProduct) => {
+    if (!p.code) {
+      setSelected(p);
+      return;
+    }
+    setLoadingDetails(true);
+    try {
+      setSelected(await fetchProductDetails(p));
+    } catch {
+      setSelected(p); // fall back to the lighter search result
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
 
   useEffect(() => {
     const q = query.trim();
@@ -258,6 +276,15 @@ function SearchTab({ colors, onStage }: { colors: ThemeColors; onStage: (entry: 
   // Saved foods match locally and always sit above database results.
   const q = query.trim().toLowerCase();
   const myFoods = q ? foods.filter((f) => f.name.toLowerCase().includes(q)) : foods;
+
+  if (loadingDetails) {
+    return (
+      <View style={styles.detailLoading}>
+        <ActivityIndicator color={colors.accent} />
+        <Text style={styles.searchHint}>Loading serving sizes…</Text>
+      </View>
+    );
+  }
 
   if (selected) {
     return (
@@ -351,7 +378,7 @@ function SearchTab({ colors, onStage }: { colors: ThemeColors; onStage: (entry: 
           const perLabel = p.per100g ? '/100g' : '/serving';
           return (
             <Animated.View key={`${p.name}-${i}`} entering={FadeIn.delay(Math.min(i, 8) * 20).duration(180)}>
-              <TouchableOpacity style={styles.resultRow} activeOpacity={0.6} onPress={() => setSelected(p)}>
+              <TouchableOpacity style={styles.resultRow} activeOpacity={0.6} onPress={() => selectProduct(p)}>
                 <Text style={styles.resultName} numberOfLines={2}>
                   {p.name}
                 </Text>
@@ -564,6 +591,7 @@ function createStyles(colors: ThemeColors) {
     },
     searchClearText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
     searchSpinner: { marginTop: Spacing.three },
+    detailLoading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
     searchError: { color: colors.danger, fontSize: 13, marginTop: Spacing.three, textAlign: 'center' },
     searchHint: { color: colors.muted, fontSize: 13, marginTop: Spacing.three, textAlign: 'center' },
     resultsList: { paddingTop: Spacing.two, paddingBottom: Spacing.four },

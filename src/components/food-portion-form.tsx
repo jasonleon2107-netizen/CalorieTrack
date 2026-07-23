@@ -9,6 +9,7 @@ import { round } from '@/lib/health';
 import { SegmentedControl } from './segmented-control';
 
 type PortionEntry = { name: string; kcal: number; proteinG: number; carbsG: number; fatG: number };
+type PortionMode = 'servings' | 'grams' | 'ml';
 
 // Shared "how much of this food?" UI: a servings/grams toggle, amount input,
 // live totals, and Add. Used by both the barcode result and search result flows.
@@ -26,21 +27,38 @@ export function FoodPortionForm({
   onSecondary: () => void;
 }) {
   const styles = createStyles(colors);
-  const startMode = product.serving ? 'servings' : 'grams';
-  const [mode, setMode] = useState<'servings' | 'grams'>(startMode);
+
+  // Only offer units the product actually has data for.
+  const modeOptions: { value: PortionMode; label: string }[] = [
+    ...(product.serving ? [{ value: 'servings' as PortionMode, label: 'Servings' }] : []),
+    ...(product.per100g ? [{ value: 'grams' as PortionMode, label: 'Grams' }] : []),
+    ...(product.per100g ? [{ value: 'ml' as PortionMode, label: 'mL' }] : []),
+  ];
+
+  const startMode: PortionMode = product.serving ? 'servings' : product.basisUnit === 'ml' ? 'ml' : 'grams';
+  const [mode, setMode] = useState<PortionMode>(startMode);
   const [amountStr, setAmountStr] = useState(startMode === 'servings' ? '1' : '100');
 
   const amount = Number(amountStr) || 0;
   const basis = mode === 'servings' ? product.serving : product.per100g;
+  // Grams and mL share the same per-100 basis: Open Food Facts reports
+  // liquids per 100 ml using the same fields it uses for 100 g.
   const factor = mode === 'servings' ? amount : amount / 100;
   const kcal = round((basis?.kcal ?? 0) * factor);
   const proteinG = round((basis?.protein ?? 0) * factor);
   const carbsG = round((basis?.carbs ?? 0) * factor);
   const fatG = round((basis?.fat ?? 0) * factor);
 
-  const perLabel = mode === 'servings' ? `per serving (${product.serving?.label ?? '1 serving'})` : 'per 100 g';
+  const perLabel =
+    mode === 'servings'
+      ? `per serving (${product.serving?.label ?? '1 serving'})`
+      : mode === 'ml'
+        ? 'per 100 mL'
+        : 'per 100 g';
 
-  const switchMode = (next: 'servings' | 'grams') => {
+  const amountLabel = mode === 'servings' ? 'Servings' : mode === 'ml' ? 'Millilitres' : 'Grams';
+
+  const switchMode = (next: PortionMode) => {
     setMode(next);
     setAmountStr(next === 'servings' ? '1' : '100');
   };
@@ -49,16 +67,13 @@ export function FoodPortionForm({
     <Animated.View style={styles.wrap} entering={FadeIn.duration(200)}>
       <Text style={styles.productName}>{product.name}</Text>
 
-      {product.serving && product.per100g && (
+      {modeOptions.length > 1 && (
         <SegmentedControl
           colors={colors}
           variant="subtle"
           value={mode}
           onChange={switchMode}
-          options={[
-            { value: 'servings' as const, label: 'Servings' },
-            { value: 'grams' as const, label: 'Grams' },
-          ]}
+          options={modeOptions}
         />
       )}
 
@@ -68,7 +83,7 @@ export function FoodPortionForm({
       </Text>
 
       <View style={styles.qtyRow}>
-        <Text style={styles.qtyLabel}>{mode === 'servings' ? 'Servings' : 'Grams'}</Text>
+        <Text style={styles.qtyLabel}>{amountLabel}</Text>
         <TextInput
           value={amountStr}
           onChangeText={setAmountStr}
