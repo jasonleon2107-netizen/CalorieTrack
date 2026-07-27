@@ -1,0 +1,9 @@
+# Netlify deploy config. When this repo is connected to Netlify, it builds the
+# web export and publishes it automatically on every push. HTTPS is provided
+# by Netlify, which the in-browser barcode scanner requires.
+[build]
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"

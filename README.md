@@ -34,6 +34,24 @@ npx expo start
 
 Then scan the QR code from the terminal with your iPhone camera and open it in Expo Go.
 
+## Running it as a web app (no App Store needed)
+
+The app also runs in a browser and can be installed to a phone's home screen as a PWA. This is the easiest way to share it: host it once and send people a link.
+
+Build the web version:
+
+```bash
+npm run build:web
+```
+
+This produces a static site in `dist/`. Deploy that folder to any static host (Netlify, Vercel, Cloudflare Pages). A `netlify.toml` is included, so connecting the repo to Netlify needs no extra configuration.
+
+On an iPhone, open the hosted link in Safari, then tap Share → **Add to Home Screen**. Launched from that icon, the app runs fullscreen like a native app.
+
+Web notes:
+- **HTTPS is required** for the barcode scanner (browsers block camera access otherwise). Every host above provides HTTPS automatically.
+- Barcode scanning on the web uses [ZXing](https://github.com/zxing-js/library) and is less reliable than the native iOS scanner, especially in Safari. Search and manual entry work the same everywhere.
+
 ## Important: this project is pinned to Expo SDK 54
 
 **Do not upgrade the `expo` package without checking first.** The version of Expo Go on the App Store only supports specific SDK versions, and Apple's review of new Expo Go builds often lags behind Expo's releases. If you upgrade past what the public Expo Go supports, the app will refuse to open on your phone with a "requires a newer version of Expo Go" error.
