@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, FadeInUp, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { wa } from '@/lib/anim';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
 
@@ -42,10 +43,10 @@ export function Dropdown<T extends string>({
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
           <Animated.View
             style={styles.menu}
-            entering={FadeInUp.duration(180)}
-            exiting={FadeOut.duration(140)}>
+            entering={wa(FadeInUp.duration(180))}
+            exiting={wa(FadeOut.duration(140))}>
             {options.map((o, i) => (
-              <Animated.View key={o.value} entering={FadeIn.delay(i * 25).duration(160)}>
+              <Animated.View key={o.value} entering={wa(FadeIn.delay(i * 25).duration(160))}>
                 <TouchableOpacity
                   style={styles.option}
                   activeOpacity={0.6}

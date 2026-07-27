@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import { wa } from '@/lib/anim';
 
 import { useProfile, type Profile } from '@/context/profile-context';
 import { Spacing, ThemeColors } from '@/constants/theme';
@@ -201,7 +202,7 @@ export function ProfileForm({ onDone }: { onDone?: () => void }) {
           <SegmentedControl colors={colors} options={ADJUST_OPTIONS} value={adjust} onChange={setAdjust} />
 
           {preview != null && previewMacros != null && (
-            <Animated.View style={styles.previewCard} entering={FadeIn.duration(220)} layout={LinearTransition}>
+            <Animated.View style={styles.previewCard} entering={wa(FadeIn.duration(220))} layout={LinearTransition}>
               <Text style={styles.previewLabel}>Daily target</Text>
               <Text style={styles.previewValue}>{preview}</Text>
               <Text style={styles.previewLabel}>cal / day</Text>

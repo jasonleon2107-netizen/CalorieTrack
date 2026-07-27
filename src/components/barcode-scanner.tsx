@@ -1,9 +1,9 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useState } from 'react';
-import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
 import { FoodProduct, lookupBarcode } from '@/lib/food';
+import { CameraScanner } from './camera-scanner';
 import { FoodPortionForm } from './food-portion-form';
 
 type ScanState =
@@ -15,6 +15,9 @@ type ScanState =
 
 type NewEntry = { name: string; kcal: number; proteinG: number; carbsG: number; fatG: number };
 
+// Shared barcode flow. The live camera view is platform-specific (native uses
+// expo-camera; web uses ZXing via camera-scanner.web.tsx); everything after a
+// barcode is captured — lookup, result, errors — is shared here.
 export function BarcodeScanner({
   colors,
   onAdd,
@@ -24,67 +27,23 @@ export function BarcodeScanner({
   onAdd: (entry: NewEntry) => void;
   onManualFallback: (barcode?: string) => void;
 }) {
-  const [permission, requestPermission] = useCameraPermissions();
   const [state, setState] = useState<ScanState>({ phase: 'scanning' });
   const styles = createStyles(colors);
 
-  const handleScanned = async ({ data }: { data: string }) => {
-    if (state.phase !== 'scanning') return;
-    setState({ phase: 'looking-up', barcode: data });
-    const result = await lookupBarcode(data);
+  const handleScanned = async (barcode: string) => {
+    setState({ phase: 'looking-up', barcode });
+    const result = await lookupBarcode(barcode);
     if (result.status === 'found') {
-      setState({ phase: 'found', barcode: data, product: result.product });
+      setState({ phase: 'found', barcode, product: result.product });
     } else if (result.status === 'not_found') {
-      setState({ phase: 'not-found', barcode: data });
+      setState({ phase: 'not-found', barcode });
     } else {
-      setState({ phase: 'error', barcode: data, message: result.message });
+      setState({ phase: 'error', barcode, message: result.message });
     }
   };
 
-  if (!permission) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.accent} />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.title}>Camera access needed</Text>
-        <Text style={styles.body}>
-          We use your camera to scan food barcodes and look up nutrition info. Nothing is stored or shared.
-        </Text>
-        {permission.canAskAgain ? (
-          <TouchableOpacity style={styles.primaryButton} onPress={requestPermission}>
-            <Text style={styles.primaryButtonText}>Grant camera access</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.primaryButton} onPress={() => Linking.openSettings()}>
-            <Text style={styles.primaryButtonText}>Open Settings</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => onManualFallback()}>
-          <Text style={styles.secondaryButtonText}>Enter manually instead</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   if (state.phase === 'scanning') {
-    return (
-      <View style={styles.cameraWrap}>
-        <CameraView
-          style={StyleSheet.absoluteFill}
-          facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'] }}
-          onBarcodeScanned={handleScanned}
-        />
-        <View style={styles.scanFrame} pointerEvents="none" />
-        <Text style={styles.scanHint}>Point your camera at a barcode</Text>
-      </View>
-    );
+    return <CameraScanner colors={colors} onScanned={handleScanned} onManualFallback={() => onManualFallback()} />;
   }
 
   if (state.phase === 'looking-up') {
@@ -134,28 +93,6 @@ export function BarcodeScanner({
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.four, gap: Spacing.two },
-    cameraWrap: { flex: 1, margin: Spacing.three, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000' },
-    scanFrame: {
-      position: 'absolute',
-      top: '30%',
-      left: '15%',
-      right: '15%',
-      height: '25%',
-      borderWidth: 2,
-      borderColor: colors.accent,
-      borderRadius: 12,
-    },
-    scanHint: {
-      position: 'absolute',
-      bottom: Spacing.four,
-      alignSelf: 'center',
-      color: '#FFFFFF',
-      fontSize: 13,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      paddingHorizontal: Spacing.three,
-      paddingVertical: Spacing.one,
-      borderRadius: 8,
-    },
     title: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center' },
     body: { fontSize: 13, color: colors.muted, textAlign: 'center' },
     primaryButton: {

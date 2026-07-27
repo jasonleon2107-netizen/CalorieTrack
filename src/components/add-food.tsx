@@ -22,6 +22,7 @@ import Animated, {
 import { Spacing, ThemeColors } from '@/constants/theme';
 import { useCustomFoods, type CustomFood } from '@/context/custom-foods-context';
 import { MEALS, MealCategory, defaultMealForNow, type LogEntry } from '@/context/log-context';
+import { wa } from '@/lib/anim';
 import { FoodProduct, fetchProductDetails, searchFoods } from '@/lib/food';
 import { round } from '@/lib/health';
 import { BarcodeScanner } from './barcode-scanner';
@@ -122,7 +123,7 @@ export function AddFood({
         </View>
 
         {/* Keying on `tab` remounts the panel so each switch cross-fades. */}
-        <Animated.View key={tab} style={styles.tabContent} entering={FadeIn.duration(200)}>
+        <Animated.View key={tab} style={styles.tabContent} entering={wa(FadeIn.duration(200))}>
           {tab === 'search' && <SearchTab colors={colors} onStage={stage} />}
           {tab === 'manual' && <ManualTab colors={colors} onStage={stage} fallbackNote={fallbackNote} />}
           {tab === 'scan' && (
@@ -141,8 +142,8 @@ export function AddFood({
           <Animated.View
             style={styles.toast}
             pointerEvents="none"
-            entering={FadeInDown.duration(200)}
-            exiting={FadeOut.duration(200)}>
+            entering={wa(FadeInDown.duration(200))}
+            exiting={wa(FadeOut.duration(200))}>
             <Text style={styles.toastText} numberOfLines={1}>
               {toast}
             </Text>
@@ -152,21 +153,21 @@ export function AddFood({
         {staged.length > 0 && (
           <Animated.View
             style={styles.basket}
-            entering={SlideInDown.duration(240)}
-            exiting={SlideOutDown.duration(200)}
+            entering={wa(SlideInDown.duration(240))}
+            exiting={wa(SlideOutDown.duration(200))}
             layout={LinearTransition.duration(200)}>
             {reviewOpen && (
               <Animated.ScrollView
                 style={styles.reviewList}
                 keyboardShouldPersistTaps="handled"
-                entering={FadeIn.duration(180)}
-                exiting={FadeOut.duration(140)}>
+                entering={wa(FadeIn.duration(180))}
+                exiting={wa(FadeOut.duration(140))}>
                 {staged.map((e, i) => (
                   <Animated.View
                     key={`${e.name}-${i}`}
                     style={styles.reviewRow}
-                    entering={FadeIn.duration(160)}
-                    exiting={FadeOut.duration(140)}
+                    entering={wa(FadeIn.duration(160))}
+                    exiting={wa(FadeOut.duration(140))}
                     layout={LinearTransition.duration(180)}>
                     <View style={styles.reviewInfo}>
                       <Text style={styles.reviewName} numberOfLines={1}>
@@ -334,7 +335,7 @@ function SearchTab({ colors, onStage }: { colors: ThemeColors; onStage: (entry: 
           <>
             <Text style={styles.groupLabel}>MY FOODS</Text>
             {myFoods.map((f) => (
-              <Animated.View key={f.id} entering={FadeIn.duration(180)} layout={LinearTransition.duration(180)}>
+              <Animated.View key={f.id} entering={wa(FadeIn.duration(180))} layout={LinearTransition.duration(180)}>
                 <TouchableOpacity
                   style={styles.resultRow}
                   activeOpacity={0.6}
@@ -377,7 +378,7 @@ function SearchTab({ colors, onStage }: { colors: ThemeColors; onStage: (entry: 
           const basis = p.per100g ?? p.serving;
           const perLabel = p.per100g ? '/100g' : '/serving';
           return (
-            <Animated.View key={`${p.name}-${i}`} entering={FadeIn.delay(Math.min(i, 8) * 20).duration(180)}>
+            <Animated.View key={`${p.name}-${i}`} entering={wa(FadeIn.delay(Math.min(i, 8) * 20).duration(180))}>
               <TouchableOpacity style={styles.resultRow} activeOpacity={0.6} onPress={() => selectProduct(p)}>
                 <Text style={styles.resultName} numberOfLines={2}>
                   {p.name}

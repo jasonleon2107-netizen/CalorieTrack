@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import {
   initialWindowMetrics,
   SafeAreaProvider,
@@ -7,6 +7,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { wa } from '@/lib/anim';
 
 import { AddFood } from '@/components/add-food';
 import { CalorieRing } from '@/components/calorie-ring';
@@ -29,9 +30,12 @@ export default function TodayScreen() {
   const [addingFood, setAddingFood] = useState(false);
   const [openMeals, setOpenMeals] = useState<Record<MealCategory, boolean>>(ALL_OPEN);
 
-  // Native tab bar is ~49pt tall and sits above the home-indicator inset.
-  // Float the FAB clear of both so it never overlaps the tabs.
-  const fabBottom = insets.bottom + 49 + Spacing.three;
+  // Float the FAB clear of the tab bar. On web the tab bar is a floating pill
+  // at the bottom-centre (see +html.tsx); on native it's the OS bottom bar
+  // above the home-indicator inset.
+  const fabBottom = Platform.OS === 'web' ? 88 : insets.bottom + 49 + Spacing.three;
+  // Enough scroll padding that the last meal's calories always clear the FAB.
+  const listBottomPad = fabBottom + 60 + Spacing.four;
 
   const key = dateKey(new Date());
   const entries = entriesFor(key);
@@ -52,7 +56,9 @@ export default function TodayScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: listBottomPad }]}
+          showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <Text style={styles.dateLabel}>
               {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
@@ -86,16 +92,16 @@ export default function TodayScreen() {
                   (mealEntries.length === 0 ? (
                     <Animated.Text
                       style={styles.emptyText}
-                      entering={FadeIn.duration(180)}
-                      exiting={FadeOut.duration(120)}>
+                      entering={wa(FadeIn.duration(180))}
+                      exiting={wa(FadeOut.duration(120))}>
                       Nothing logged
                     </Animated.Text>
                   ) : (
                     mealEntries.map((item) => (
                       <Animated.View
                         key={item.id}
-                        entering={FadeIn.duration(200)}
-                        exiting={FadeOut.duration(150)}
+                        entering={wa(FadeIn.duration(200))}
+                        exiting={wa(FadeOut.duration(150))}
                         layout={LinearTransition.duration(200)}>
                         <EntryRow colors={colors} entry={item} onDelete={() => removeEntry(key, item.id)} />
                       </Animated.View>
@@ -144,13 +150,15 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     safeArea: { flex: 1 },
-    scrollContent: { padding: Spacing.three, paddingBottom: Spacing.six * 2 },
+    scrollContent: { padding: Spacing.three },
     header: { marginBottom: Spacing.two },
     dateLabel: { fontSize: 13, color: colors.muted, letterSpacing: 0.3 },
     title: { fontSize: 22, fontWeight: '700', color: colors.text, marginTop: 2 },
     macroRow: { flexDirection: 'row', gap: Spacing.three, marginTop: Spacing.four },
     mealSection: { marginTop: Spacing.four },
-    mealHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.two },
+    // Reserve the bottom-right corner where the FAB floats so a meal's calorie
+    // count is never hidden underneath it.
+    mealHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.two, paddingRight: 76 },
     mealChevron: { fontSize: 13, color: colors.muted, width: 16 },
     mealTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
     mealCount: { fontSize: 13, color: colors.muted, marginLeft: Spacing.one },

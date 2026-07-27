@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { wa } from '@/lib/anim';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
 import { FoodProduct } from '@/lib/food';
@@ -64,7 +65,7 @@ export function FoodPortionForm({
   };
 
   return (
-    <Animated.View style={styles.wrap} entering={FadeIn.duration(200)}>
+    <Animated.View style={styles.wrap} entering={wa(FadeIn.duration(200))}>
       <Text style={styles.productName}>{product.name}</Text>
 
       {modeOptions.length > 1 && (

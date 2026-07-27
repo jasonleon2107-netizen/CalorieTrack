@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import { wa } from '@/lib/anim';
 
 import { EntryRow } from '@/components/entry-row';
 import { MacroBar } from '@/components/macro-bar';
@@ -143,7 +144,7 @@ export default function HistoryScreen() {
             <LegendDot colors={colors} color={colors.danger} label="Nothing logged" />
           </View>
 
-          <Animated.View key={selectedKey} entering={FadeIn.duration(220)} style={styles.detail}>
+          <Animated.View key={selectedKey} entering={wa(FadeIn.duration(220))} style={styles.detail}>
             <Text style={styles.detailDate}>
               {selected.toLocaleDateString(undefined, {
                 weekday: 'long',
@@ -183,8 +184,8 @@ export default function HistoryScreen() {
                     {mealEntries.map((item) => (
                       <Animated.View
                         key={item.id}
-                        entering={FadeIn.duration(180)}
-                        exiting={FadeOut.duration(140)}
+                        entering={wa(FadeIn.duration(180))}
+                        exiting={wa(FadeOut.duration(140))}
                         layout={LinearTransition.duration(180)}>
                         <EntryRow colors={colors} entry={item} onDelete={() => removeEntry(selectedKey, item.id)} />
                       </Animated.View>
