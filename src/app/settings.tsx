@@ -121,7 +121,7 @@ export default function SettingsScreen() {
               )}
             </View>
 
-            <WeightChart colors={colors} entries={weightEntries} format={formatWeight} />
+            <WeightChart colors={colors} entries={weightEntries} format={formatWeight} baseline={profile.weightKg} />
 
             <View style={styles.weightInputRow}>
               <TextInput

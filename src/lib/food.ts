@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export type Nutrition = {
   kcal: number;
   protein: number;
@@ -176,42 +178,36 @@ export async function fetchProductDetails(product: FoodProduct): Promise<FoodPro
   return { ...result.product, name: product.name };
 }
 
-// Full-text food search via Open Food Facts' search-a-licious service.
-// No API key required. Returns best matches with usable nutrition data.
+// Base URL of our food-search proxy. Empty (same origin) is correct for the
+// deployed web build; the native app must set EXPO_PUBLIC_FOOD_API_BASE to the
+// hosted site URL (or a `netlify dev` LAN URL) since it has no origin of its own.
+const FOOD_API_BASE = process.env.EXPO_PUBLIC_FOOD_API_BASE ?? '';
+
+// Full-text food search via our serverless proxy, which merges USDA
+// FoodData Central (whole/generic foods, fresh produce) with FatSecret
+// (branded + restaurant meals) and returns them already normalized. Results
+// carry no `code`, so `fetchProductDetails` is a no-op for them.
 export async function searchFoods(query: string, signal?: AbortSignal): Promise<FoodProduct[]> {
   const q = query.trim();
   if (!q) return [];
-  // The search index only carries per-100 nutrition; serving sizes live on the
-  // full product record, fetched on demand by `fetchProductDetails`.
-  const url =
-    `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}` +
-    `&page_size=25&fields=code,product_name,generic_name,brands,nutriments,quantity`;
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal });
+  // On native there is no page origin, so a blank base can't resolve. Fail with
+  // a clear message instead of an opaque "Network request failed".
+  if (!FOOD_API_BASE && Platform.OS !== 'web') {
+    throw new Error('Food search is not configured for this build yet. Set EXPO_PUBLIC_FOOD_API_BASE.');
+  }
+  const url = `${FOOD_API_BASE}/.netlify/functions/food-search?q=${encodeURIComponent(q)}`;
+  const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`the food database returned ${res.status}. Try again shortly.`);
-  // A rate-limited or erroring Open Food Facts serves an HTML page, which
-  // would otherwise surface as a confusing JSON parse error.
   let data: any;
   try {
     data = await res.json();
   } catch {
     throw new Error('the food database is busy. Try again shortly.');
   }
-  const hits: any[] = data.hits ?? [];
-  const seen = new Set<string>();
-  const results: FoodProduct[] = [];
-  for (const hit of hits) {
-    // One malformed record shouldn't wipe out the whole result set.
-    let product: FoodProduct | null = null;
-    try {
-      product = parseProduct(hit);
-    } catch {
-      continue;
-    }
-    if (!product) continue;
-    const dedupeKey = product.name.toLowerCase();
-    if (seen.has(dedupeKey)) continue;
-    seen.add(dedupeKey);
-    results.push(product);
-  }
-  return results;
+  const results: any[] = Array.isArray(data?.results) ? data.results : [];
+  // Trust the proxy's shape, but guard against malformed rows.
+  return results.filter(
+    (r): r is FoodProduct =>
+      r && typeof r.name === 'string' && (r.serving !== undefined || r.per100g !== undefined)
+  );
 }

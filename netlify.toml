@@ -7,3 +7,10 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Serverless food-search proxy (USDA + FatSecret). Reachable at
+# /.netlify/functions/food-search. Requires USDA_API_KEY and the FatSecret
+# client credentials to be set as site environment variables.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

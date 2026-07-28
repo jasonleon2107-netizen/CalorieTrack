@@ -8,7 +8,7 @@ import { selectionHaptic, successHaptic, tapHaptic } from '@/lib/haptics';
 
 import { AddFood } from '@/components/add-food';
 import { CalorieRing, type RingMetric } from '@/components/calorie-ring';
-import { DraggableSheet } from '@/components/draggable-sheet';
+import { Sheet } from '@/components/sheet';
 import { EntryRow } from '@/components/entry-row';
 import { MacroBar } from '@/components/macro-bar';
 import { roundedFont, Spacing, ThemeColors } from '@/constants/theme';
@@ -257,7 +257,7 @@ export default function TodayScreen() {
         )}
       </SafeAreaView>
 
-      <DraggableSheet visible={addingFood} onClose={() => setAddingFood(false)} colors={colors}>
+      <Sheet visible={addingFood} onClose={() => setAddingFood(false)} colors={colors}>
         <AddFood
           colors={colors}
           onClose={() => setAddingFood(false)}
@@ -268,7 +268,7 @@ export default function TodayScreen() {
             successHaptic();
           }}
         />
-      </DraggableSheet>
+      </Sheet>
     </View>
   );
 }

@@ -89,7 +89,7 @@ export function AddFood({
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose} hitSlop={12}>
             <Text style={styles.closeButtonText}>Close</Text>
