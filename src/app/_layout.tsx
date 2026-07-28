@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useColorScheme, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import AppTabs from '@/components/app-tabs';
 import { ProfileForm } from '@/components/profile-form';
@@ -67,14 +68,16 @@ function RootLayoutInner() {
 
 export default function RootLayout() {
   return (
-    <ProfileProvider>
-      <LogProvider>
-        <WeightProvider>
-          <CustomFoodsProvider>
-            <RootLayoutInner />
-          </CustomFoodsProvider>
-        </WeightProvider>
-      </LogProvider>
-    </ProfileProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ProfileProvider>
+        <LogProvider>
+          <WeightProvider>
+            <CustomFoodsProvider>
+              <RootLayoutInner />
+            </CustomFoodsProvider>
+          </WeightProvider>
+        </LogProvider>
+      </ProfileProvider>
+    </GestureHandlerRootView>
   );
 }

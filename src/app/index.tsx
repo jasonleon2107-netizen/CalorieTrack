@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import {
-  initialWindowMetrics,
-  SafeAreaProvider,
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { FadeIn, FadeOut, LinearTransition, runOnJS, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { wa } from '@/lib/anim';
+import { selectionHaptic, successHaptic, tapHaptic } from '@/lib/haptics';
 
 import { AddFood } from '@/components/add-food';
 import { CalorieRing, type RingMetric } from '@/components/calorie-ring';
+import { DraggableSheet } from '@/components/draggable-sheet';
 import { EntryRow } from '@/components/entry-row';
 import { MacroBar } from '@/components/macro-bar';
 import { roundedFont, Spacing, ThemeColors } from '@/constants/theme';
@@ -60,6 +58,7 @@ export default function TodayScreen() {
     if (fresh) {
       markMilestone(fresh.id);
       setToast(fresh.msg);
+      successHaptic();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedDateKeys]);
@@ -74,10 +73,32 @@ export default function TodayScreen() {
   const [openMeals, setOpenMeals] = useState<Record<MealCategory, boolean>>(ALL_OPEN);
   const [ringMetric, setRingMetric] = useState<RingMetric>('calories');
   const [pulseKey, setPulseKey] = useState(0);
+  const [viewedDate, setViewedDate] = useState(() => new Date());
   const cycleMetric = () => {
+    selectionHaptic();
     const seq: RingMetric[] = ['calories', 'protein', 'carbs', 'fat'];
     setRingMetric((m) => seq[(seq.indexOf(m) + 1) % seq.length]);
   };
+
+  // Move the viewed day by ±1, never into the future.
+  const changeDay = (delta: number) => {
+    setViewedDate((d) => {
+      const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + delta);
+      const t = new Date();
+      const todayStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+      if (next.getTime() > todayStart.getTime()) return d;
+      selectionHaptic();
+      return next;
+    });
+  };
+  // Horizontal swipe changes the day; vertical movement lets the list scroll.
+  const daySwipe = Gesture.Pan()
+    .activeOffsetX([-15, 15])
+    .failOffsetY([-12, 12])
+    .onEnd((e) => {
+      if (e.translationX > 60) runOnJS(changeDay)(-1);
+      else if (e.translationX < -60) runOnJS(changeDay)(1);
+    });
 
   // Float the FAB clear of the tab bar. On web the tab bar is a floating pill
   // at the bottom-centre (see +html.tsx); on native it's the OS bottom bar
@@ -86,8 +107,12 @@ export default function TodayScreen() {
   // Enough scroll padding that the last meal's calories always clear the FAB.
   const listBottomPad = fabBottom + 60 + Spacing.four;
 
-  const key = dateKey(new Date());
+  const key = dateKey(viewedDate);
   const entries = entriesFor(key);
+  const todayKey = dateKey(new Date());
+  const yesterdayKey = dateKey(new Date(Date.now() - 86400000));
+  const isToday = key === todayKey;
+  const dayTitle = isToday ? 'Today' : key === yesterdayKey ? 'Yesterday' : viewedDate.toLocaleDateString(undefined, { weekday: 'long' });
 
   const totals = entries.reduce(
     (acc, e) => ({
@@ -104,6 +129,7 @@ export default function TodayScreen() {
   const ringMacros = macros ?? { proteinG: 0, carbsG: 0, fatG: 0 };
   const toggleMeal = (m: MealCategory) => setOpenMeals((prev) => ({ ...prev, [m]: !prev[m] }));
   const quickAdd = (rc: RecentFood) => {
+    tapHaptic();
     addEntry(key, {
       name: rc.name,
       meal: defaultMealForNow(),
@@ -118,14 +144,23 @@ export default function TodayScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <GestureDetector gesture={daySwipe}>
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: listBottomPad }]}
           showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <Text style={styles.dateLabel}>
-              {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+              {viewedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
             </Text>
-            <Text style={styles.title}>Today</Text>
+            <View style={styles.titleRow}>
+              <TouchableOpacity onPress={() => changeDay(-1)} hitSlop={10} style={styles.dayArrow}>
+                <Text style={styles.dayArrowText}>‹</Text>
+              </TouchableOpacity>
+              <Text style={styles.title}>{dayTitle}</Text>
+              <TouchableOpacity onPress={() => changeDay(1)} hitSlop={10} style={styles.dayArrow} disabled={isToday}>
+                <Text style={[styles.dayArrowText, isToday && styles.dayArrowDisabled]}>›</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <CalorieRing
@@ -205,6 +240,7 @@ export default function TodayScreen() {
             })
           )}
         </ScrollView>
+        </GestureDetector>
 
         <TouchableOpacity style={[styles.fab, { bottom: fabBottom }]} onPress={() => setAddingFood(true)}>
           <Text style={styles.fabIcon}>+</Text>
@@ -221,23 +257,18 @@ export default function TodayScreen() {
         )}
       </SafeAreaView>
 
-      <Modal
-        visible={addingFood}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setAddingFood(false)}>
-        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-          <AddFood
-            colors={colors}
-            onClose={() => setAddingFood(false)}
-            onCommit={(committed) => {
-              addEntries(key, committed);
-              setAddingFood(false);
-              setPulseKey((k) => k + 1);
-            }}
-          />
-        </SafeAreaProvider>
-      </Modal>
+      <DraggableSheet visible={addingFood} onClose={() => setAddingFood(false)} colors={colors}>
+        <AddFood
+          colors={colors}
+          onClose={() => setAddingFood(false)}
+          onCommit={(committed) => {
+            addEntries(key, committed);
+            setAddingFood(false);
+            setPulseKey((k) => k + 1);
+            successHaptic();
+          }}
+        />
+      </DraggableSheet>
     </View>
   );
 }
@@ -258,7 +289,11 @@ function createStyles(colors: ThemeColors) {
     scrollContent: { padding: Spacing.three },
     header: { marginBottom: Spacing.two },
     dateLabel: { fontSize: 13, color: colors.muted, letterSpacing: 0.3 },
-    title: { fontSize: 22, fontWeight: '700', color: colors.text, marginTop: 2 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: 2 },
+    title: { fontSize: 22, fontWeight: '700', color: colors.text },
+    dayArrow: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+    dayArrowText: { fontSize: 24, fontWeight: '600', color: colors.accent, marginTop: -2 },
+    dayArrowDisabled: { color: colors.cardElevated },
     macroRow: { flexDirection: 'row', gap: Spacing.three, marginTop: Spacing.four },
     quickAddWrap: { marginTop: Spacing.four },
     quickAddLabel: { fontSize: 12, fontWeight: '700', color: colors.muted, letterSpacing: 0.5, marginBottom: Spacing.two },

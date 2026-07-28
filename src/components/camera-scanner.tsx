@@ -1,8 +1,10 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
+import { successHaptic } from '@/lib/haptics';
 
 // Native (iOS) live barcode camera, backed by expo-camera's hardware scanner.
 export function CameraScanner({
@@ -19,6 +21,23 @@ export function CameraScanner({
   // The camera can fire several times before the parent unmounts us; only
   // report the first hit.
   const handled = useRef(false);
+  const [locked, setLocked] = useState(false);
+  const lock = useSharedValue(0);
+
+  const frameStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + lock.value * 0.06 }],
+    borderColor: interpolateColor(lock.value, [0, 1], [colors.accent, colors.protein]),
+  }));
+
+  const onDetected = (data: string) => {
+    if (handled.current) return;
+    handled.current = true;
+    setLocked(true);
+    successHaptic();
+    lock.value = withTiming(1, { duration: 200 });
+    // Brief "locked on" beat before handing off to the lookup.
+    setTimeout(() => onScanned(data), 340);
+  };
 
   if (!permission) {
     return (
@@ -57,14 +76,10 @@ export function CameraScanner({
         style={StyleSheet.absoluteFill}
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'] }}
-        onBarcodeScanned={({ data }) => {
-          if (handled.current) return;
-          handled.current = true;
-          onScanned(data);
-        }}
+        onBarcodeScanned={({ data }) => onDetected(data)}
       />
-      <View style={styles.scanFrame} pointerEvents="none" />
-      <Text style={styles.scanHint}>Point your camera at a barcode</Text>
+      <Animated.View style={[styles.scanFrame, frameStyle]} pointerEvents="none" />
+      <Text style={styles.scanHint}>{locked ? 'Got it!' : 'Point your camera at a barcode'}</Text>
     </View>
   );
 }

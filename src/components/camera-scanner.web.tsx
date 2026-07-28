@@ -2,8 +2,10 @@ import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
 import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
+import { successHaptic } from '@/lib/haptics';
 
 // The food barcodes we care about. Restricting formats makes decoding faster
 // and less prone to misreads than leaving every format enabled.
@@ -32,6 +34,12 @@ export function CameraScanner({
   const handled = useRef(false);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<WebState>({ phase: 'starting' });
+  const [locked, setLocked] = useState(false);
+  const lock = useSharedValue(0);
+  const frameStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + lock.value * 0.06 }],
+    borderColor: interpolateColor(lock.value, [0, 1], [colors.accent, colors.protein]),
+  }));
 
   useEffect(() => {
     handled.current = false;
@@ -52,8 +60,14 @@ export function CameraScanner({
           (result) => {
             if (result && !handled.current) {
               handled.current = true;
-              controlsRef.current?.stop();
-              onScanned(result.getText());
+              const text = result.getText();
+              setLocked(true);
+              successHaptic();
+              lock.value = withTiming(1, { duration: 200 });
+              setTimeout(() => {
+                controlsRef.current?.stop();
+                onScanned(text);
+              }, 340);
             }
             // Errors here are almost all "no barcode in this frame" and fire
             // continuously — ignore them; real failures surface at start-up.
@@ -98,8 +112,8 @@ export function CameraScanner({
 
       {state.phase === 'scanning' && (
         <>
-          <View style={styles.scanFrame} pointerEvents="none" />
-          <Text style={styles.scanHint}>Point your camera at a barcode</Text>
+          <Animated.View style={[styles.scanFrame, frameStyle]} pointerEvents="none" />
+          <Text style={styles.scanHint}>{locked ? 'Got it!' : 'Point your camera at a barcode'}</Text>
         </>
       )}
 
