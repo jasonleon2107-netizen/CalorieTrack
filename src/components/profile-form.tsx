@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
@@ -260,20 +260,28 @@ function Field({
   placeholder?: string;
 }) {
   const styles = createStyles(colors);
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
         keyboardType="decimal-pad"
-        style={styles.fieldInput}
+        style={[styles.fieldInput, focused && styles.fieldInputFocused, WEB_NO_OUTLINE]}
       />
     </View>
   );
 }
+
+// react-native-web draws a browser focus ring (orange on some systems) on the
+// underlying <input>. We supply our own navy focus border, so suppress the ring.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const WEB_NO_OUTLINE: any = Platform.OS === 'web' ? { outlineStyle: 'none' } : null;
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -301,11 +309,14 @@ function createStyles(colors: ThemeColors) {
     fieldInput: {
       backgroundColor: colors.card,
       borderRadius: 12,
-      paddingVertical: 13,
-      paddingHorizontal: 14,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      paddingVertical: 11,
+      paddingHorizontal: 12,
       color: colors.text,
       fontSize: 16,
     },
+    fieldInputFocused: { borderColor: colors.accent },
     activityRow: {
       flexDirection: 'row',
       alignItems: 'center',
