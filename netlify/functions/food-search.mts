@@ -33,26 +33,7 @@ const JSON_HEADERS = {
 export default async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: JSON_HEADERS });
 
-  const url = new URL(req.url);
-
-  // Temporary diagnostic: ?diag=1 reports which credentials are present and how
-  // each source responds, without exposing any secret values. Remove once the
-  // deploy is confirmed working.
-  if (url.searchParams.get('diag')) {
-    const env = {
-      usda: !!process.env.USDA_API_KEY,
-      fatsecretId: !!process.env.FATSECRET_CLIENT_ID,
-      fatsecretSecret: !!process.env.FATSECRET_CLIENT_SECRET,
-    };
-    const [u, f] = await Promise.allSettled([searchUSDA('apple'), searchFatSecret('apple')]);
-    return json({
-      env,
-      usda: u.status === 'fulfilled' ? { ok: true, n: u.value.length } : { ok: false, err: String(u.reason) },
-      fatsecret: f.status === 'fulfilled' ? { ok: true, n: f.value.length } : { ok: false, err: String(f.reason) },
-    });
-  }
-
-  const q = (url.searchParams.get('q') ?? '').trim();
+  const q = (new URL(req.url).searchParams.get('q') ?? '').trim();
   if (!q) return json({ results: [] });
 
   // Run both sources in parallel; a failure in one must not sink the other.
@@ -67,6 +48,24 @@ export default async (req: Request): Promise<Response> => {
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+}
+
+// USDA and FatSecret occasionally throttle (429) or blip (5xx). One quick retry
+// keeps a transient hiccup from blanking an otherwise-good search.
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+async function fetchRetry(url: string, opts?: RequestInit, tries = 2): Promise<Response> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url, opts);
+      if (res.ok || !RETRYABLE.has(res.status)) return res;
+      last = new Error(`${res.status}`);
+    } catch (e) {
+      last = e;
+    }
+    if (i < tries - 1) await new Promise((r) => setTimeout(r, 400));
+  }
+  throw last instanceof Error ? last : new Error('request failed');
 }
 
 // ---- ranking -------------------------------------------------------------
@@ -125,7 +124,7 @@ async function searchUSDA(q: string): Promise<Scored[]> {
     `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(key)}` +
     `&query=${encodeURIComponent(q)}&pageSize=25` +
     `&dataType=${encodeURIComponent('Foundation,SR Legacy,Survey (FNDDS),Branded')}`;
-  const res = await fetch(url);
+  const res = await fetchRetry(url);
   if (!res.ok) throw new Error(`USDA ${res.status}`);
   const data: any = await res.json();
   const foods: any[] = Array.isArray(data?.foods) ? data.foods : [];
@@ -189,7 +188,7 @@ let fsToken: { value: string; expires: number } | null = null;
 async function fatSecretToken(id: string, secret: string): Promise<string> {
   if (fsToken && fsToken.expires > Date.now() + 60_000) return fsToken.value;
   const auth = Buffer.from(`${id}:${secret}`).toString('base64');
-  const res = await fetch('https://oauth.fatsecret.com/connect/token', {
+  const res = await fetchRetry('https://oauth.fatsecret.com/connect/token', {
     method: 'POST',
     headers: {
       authorization: `Basic ${auth}`,
@@ -237,7 +236,7 @@ async function searchFatSecret(q: string): Promise<Scored[]> {
   const url =
     'https://platform.fatsecret.com/rest/server.api?method=foods.search&format=json' +
     `&max_results=20&search_expression=${encodeURIComponent(q)}`;
-  const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  const res = await fetchRetry(url, { headers: { authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`FatSecret ${res.status}`);
   const data: any = await res.json();
   const raw = data?.foods?.food;
