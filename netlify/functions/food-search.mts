@@ -33,7 +33,26 @@ const JSON_HEADERS = {
 export default async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: JSON_HEADERS });
 
-  const q = (new URL(req.url).searchParams.get('q') ?? '').trim();
+  const url = new URL(req.url);
+
+  // Temporary diagnostic: ?diag=1 reports which credentials are present and how
+  // each source responds, without exposing any secret values. Remove once the
+  // deploy is confirmed working.
+  if (url.searchParams.get('diag')) {
+    const env = {
+      usda: !!process.env.USDA_API_KEY,
+      fatsecretId: !!process.env.FATSECRET_CLIENT_ID,
+      fatsecretSecret: !!process.env.FATSECRET_CLIENT_SECRET,
+    };
+    const [u, f] = await Promise.allSettled([searchUSDA('apple'), searchFatSecret('apple')]);
+    return json({
+      env,
+      usda: u.status === 'fulfilled' ? { ok: true, n: u.value.length } : { ok: false, err: String(u.reason) },
+      fatsecret: f.status === 'fulfilled' ? { ok: true, n: f.value.length } : { ok: false, err: String(f.reason) },
+    });
+  }
+
+  const q = (url.searchParams.get('q') ?? '').trim();
   if (!q) return json({ results: [] });
 
   // Run both sources in parallel; a failure in one must not sink the other.
