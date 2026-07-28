@@ -7,7 +7,7 @@ import { wa } from '@/lib/anim';
 import { ProfileForm } from '@/components/profile-form';
 import { SegmentedControl } from '@/components/segmented-control';
 import { WeightChart } from '@/components/weight-chart';
-import { Spacing, ThemeColors } from '@/constants/theme';
+import { roundedFont, Spacing, ThemeColors } from '@/constants/theme';
 import { dateKey, useLog } from '@/context/log-context';
 import { useProfile } from '@/context/profile-context';
 import { useWeight } from '@/context/weight-context';
@@ -84,7 +84,11 @@ export default function SettingsScreen() {
               <View>
                 <Text style={styles.streakLabel}>day streak</Text>
                 <Text style={styles.streakSub}>
-                  {streaks.current === 0 ? 'Log something today to start one' : 'Keep it going'}
+                  {streaks.current === 0
+                    ? 'Log something today to start one'
+                    : streaks.current >= streaks.longest
+                      ? 'Your best yet — keep it up'
+                      : `Your best is ${streaks.longest} days`}
                 </Text>
               </View>
             </View>
@@ -216,7 +220,7 @@ function createStyles(colors: ThemeColors) {
     // Streak
     streakCard: { backgroundColor: colors.card, borderRadius: 16, padding: Spacing.four },
     streakMain: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-    streakNumber: { fontSize: 48, fontWeight: '800', color: colors.accent, lineHeight: 52 },
+    streakNumber: { fontSize: 48, fontWeight: '800', color: colors.accent, lineHeight: 52, fontFamily: roundedFont },
     streakLabel: { fontSize: 16, fontWeight: '700', color: colors.text },
     streakSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
     streakStats: {
@@ -227,11 +231,11 @@ function createStyles(colors: ThemeColors) {
       paddingTop: Spacing.three,
     },
     stat: { flex: 1, alignItems: 'center' },
-    statValue: { fontSize: 17, fontWeight: '700', color: colors.text },
+    statValue: { fontSize: 17, fontWeight: '700', color: colors.text, fontFamily: roundedFont },
     statLabel: { fontSize: 11, color: colors.muted, marginTop: 2 },
     // Weight
     weightHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.three },
-    weightCurrent: { fontSize: 26, fontWeight: '800', color: colors.text },
+    weightCurrent: { fontSize: 26, fontWeight: '800', color: colors.text, fontFamily: roundedFont },
     weightSub: { fontSize: 11, color: colors.muted, marginTop: 2 },
     weightChangeWrap: { alignItems: 'flex-end' },
     weightChange: { fontSize: 16, fontWeight: '700' },

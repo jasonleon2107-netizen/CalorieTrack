@@ -94,6 +94,20 @@ export function FoodPortionForm({
         />
       </View>
 
+      <View style={styles.chipRow}>
+        {(mode === 'servings' ? ['0.5', '1', '2', '3'] : ['50', '100', '150', '200']).map((c) => {
+          const active = amountStr === c;
+          return (
+            <TouchableOpacity
+              key={c}
+              style={[styles.chip, active && { backgroundColor: colors.accent }]}
+              onPress={() => setAmountStr(c)}>
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{c === '0.5' ? '½' : c}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       <View style={styles.totalMacroRow}>
         <Text style={styles.totalKcal}>{kcal} cal</Text>
         <Text style={[styles.totalMacro, { color: colors.protein }]}>{proteinG}g protein</Text>
@@ -120,6 +134,10 @@ function createStyles(colors: ThemeColors) {
     body: { fontSize: 13, color: colors.muted },
     qtyRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.two },
     qtyLabel: { fontSize: 14, color: colors.muted },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+    chip: { backgroundColor: colors.card, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16 },
+    chipText: { fontSize: 14, fontWeight: '600', color: colors.text },
+    chipTextActive: { color: '#FFFFFF' },
     qtyInput: {
       backgroundColor: colors.card,
       borderRadius: 10,

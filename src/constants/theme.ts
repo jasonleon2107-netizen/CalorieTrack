@@ -20,6 +20,9 @@ export interface ThemeColors {
   protein: string;
   carbs: string;
   fat: string;
+  // One harmonious blue family (light -> deep) for the meal segments of the
+  // calorie ring, in breakfast/lunch/dinner/snack order.
+  mealColors: [string, string, string, string];
 }
 
 export const Colors: { light: ThemeColors; dark: ThemeColors } = {
@@ -30,6 +33,7 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     text: '#14161A',
     muted: '#6B7280',
     accent: '#1D3A8A',
+    mealColors: ['#6C8AE0', '#3E63C8', '#1D3A8A', '#132A66'],
     ...shared,
   },
   dark: {
@@ -39,9 +43,13 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     text: '#F2F3F5',
     muted: '#8A8F98',
     accent: '#5B7FFF',
+    mealColors: ['#B9CBFF', '#8AA5FF', '#5B7FFF', '#3B5BD9'],
     ...shared,
   },
 };
+
+// SF Rounded numerals on iOS give figures a friendly, app-like feel.
+export const roundedFont = Platform.select({ ios: 'ui-rounded', default: undefined });
 
 export const Fonts = Platform.select({
   ios: {

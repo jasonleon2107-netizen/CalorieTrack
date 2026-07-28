@@ -90,6 +90,7 @@ export function AddFood({
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <View style={styles.grabHandle} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose} hitSlop={12}>
             <Text style={styles.closeButtonText}>Close</Text>
@@ -502,6 +503,7 @@ function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     safeArea: { flex: 1 },
+    grabHandle: { width: 36, height: 5, borderRadius: 3, backgroundColor: colors.cardElevated, alignSelf: 'center', marginTop: 8 },
     header: {
       flexDirection: 'row',
       alignItems: 'center',

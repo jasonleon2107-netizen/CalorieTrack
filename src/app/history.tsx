@@ -6,11 +6,13 @@ import { wa } from '@/lib/anim';
 
 import { EntryRow } from '@/components/entry-row';
 import { MacroBar } from '@/components/macro-bar';
+import { WeekInsight } from '@/components/week-insight';
 import { Spacing, ThemeColors } from '@/constants/theme';
 import { dateKey, MEALS, useLog, type LogEntry } from '@/context/log-context';
 import { useProfile } from '@/context/profile-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { round } from '@/lib/health';
+import { computeStreaks } from '@/lib/streak';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -27,8 +29,10 @@ function startOfDay(d: Date) {
 export default function HistoryScreen() {
   const colors = useThemeColors();
   const styles = createStyles(colors);
-  const { entriesFor, removeEntry } = useLog();
+  const { entriesFor, removeEntry, loggedDateKeys } = useLog();
   const { goalKcal, macros } = useProfile();
+  const dayTotal = (d: Date) => entriesFor(dateKey(d)).reduce((s, e) => s + e.kcal, 0);
+  const currentStreak = computeStreaks(loggedDateKeys).current;
 
   const today = startOfDay(new Date());
   const [viewMonth, setViewMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -98,6 +102,18 @@ export default function HistoryScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>History</Text>
 
+          <WeekInsight
+            colors={colors}
+            goal={goal}
+            dayTotal={dayTotal}
+            streak={currentStreak}
+            onSelectDay={(d) => {
+              setSelected(startOfDay(d));
+              setViewMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+            }}
+          />
+
+          <Text style={styles.calendarLabel}>CALENDAR</Text>
           <View style={styles.monthHeader}>
             <TouchableOpacity onPress={() => shiftMonth(-1)} hitSlop={12} style={styles.monthArrow}>
               <Text style={styles.monthArrowText}>‹</Text>
@@ -217,6 +233,7 @@ function createStyles(colors: ThemeColors) {
     safeArea: { flex: 1 },
     scrollContent: { padding: Spacing.three, paddingBottom: Spacing.six * 2 },
     title: { fontSize: 22, fontWeight: '700', color: colors.text, marginBottom: Spacing.three },
+    calendarLabel: { fontSize: 12, color: colors.muted, fontWeight: '700', letterSpacing: 0.5, marginTop: Spacing.four, marginBottom: Spacing.two },
     monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     monthArrow: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     monthArrowText: { color: colors.accent, fontSize: 26, fontWeight: '600' },
