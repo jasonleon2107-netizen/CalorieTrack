@@ -21,7 +21,9 @@ type FoodProduct = {
 };
 
 // Internal wrapper so we can rank before handing back bare FoodProducts.
-type Scored = { product: FoodProduct; generic: boolean };
+// `priority` is a per-dataset base score (clean everyday-food datasets rank
+// above scientific cuts and packaged noise).
+type Scored = { product: FoodProduct; priority: number };
 
 const JSON_HEADERS = {
   'content-type': 'application/json',
@@ -70,23 +72,53 @@ async function fetchRetry(url: string, opts?: RequestInit, tries = 2): Promise<R
 
 // ---- ranking -------------------------------------------------------------
 
+// Odd cuts / offal that flood searches for common meats. Pushed down hard
+// unless the user actually typed one of these words.
+const OFFAL = ['feet', 'paws', 'giblets', 'gizzard', 'cartilage', 'tripe', 'snout', 'spleen', 'lungs'];
+
+const STOPWORDS = new Set(['and', 'with', 'the', 'for', 'of', 'in', 'an', 'or', 'on', 'to', 'a']);
+
+function tokenize(q: string): string[] {
+  return q
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 1 && !STOPWORDS.has(t));
+}
+
 function rankAndDedupe(scored: Scored[], query: string): FoodProduct[] {
-  const q = query.toLowerCase();
-  const seen = new Set<string>();
-  const withScore = scored.map((s) => {
-    const name = s.product.name.toLowerCase();
-    let score = 0;
-    if (name === q) score += 200;
-    else if (name.startsWith(q)) score += 100;
-    else if (name.includes(q)) score += 40;
-    if (s.generic) score += 25; // surface whole/generic foods above branded noise
-    // Shorter names for the same match tend to be the "plain" food (e.g.
-    // "Apple" over "Apple cinnamon breakfast bar").
-    score -= Math.min(name.length, 40) * 0.2;
-    return { product: s.product, score };
-  });
+  const q = query.toLowerCase().trim();
+  const tokens = tokenize(q);
+
+  const withScore = scored
+    .map((s) => {
+      const name = s.product.name.toLowerCase();
+      let matched = 0;
+      for (const t of tokens) if (name.includes(t)) matched++;
+
+      // Drop rows that match none of the query words — USDA relevance can be
+      // very loose, and these are the "why is this even here" results.
+      if (matched === 0 && !name.includes(q)) return null;
+
+      let score = s.priority;
+      if (name === q) score += 500; // exact name
+      if (name.startsWith(q)) score += 220; // "chicken breast, grilled"
+      // USDA inverts names ("Rice, white, cooked"), so the canonical food starts
+      // with one of the query words, while combo dishes start with another
+      // ingredient ("Beans and white rice"). Reward the canonical form.
+      if (tokens.some((t) => name.startsWith(t))) score += 160;
+      if (tokens.length > 1 && name.includes(q)) score += 110; // whole phrase present
+      if (tokens.length) score += (matched / tokens.length) * 200; // share of words matched
+      if (tokens.length && matched === tokens.length) score += 90; // all words present
+      score -= Math.min(name.length, 90) * 0.6; // prefer the plain, concise entry
+      if (OFFAL.some((w) => name.includes(w) && !q.includes(w))) score -= 250;
+
+      return { product: s.product, score };
+    })
+    .filter((x): x is { product: FoodProduct; score: number } => x !== null);
+
   withScore.sort((a, b) => b.score - a.score);
 
+  const seen = new Set<string>();
   const out: FoodProduct[] = [];
   for (const { product } of withScore) {
     const key = product.name.toLowerCase();
@@ -120,10 +152,14 @@ function usdaNutrient(nutrients: any[], numbers: string[], kcal = false): number
 async function searchUSDA(q: string): Promise<Scored[]> {
   const key = process.env.USDA_API_KEY;
   if (!key) return [];
+  // Only the whole-food datasets. "Branded" floods results with packaged
+  // products and buries staples; FatSecret covers branded + restaurant instead.
+  // FNDDS ("Survey") has the cleanest everyday-food names, so it's queried and
+  // ranked first.
   const url =
     `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${encodeURIComponent(key)}` +
-    `&query=${encodeURIComponent(q)}&pageSize=25` +
-    `&dataType=${encodeURIComponent('Foundation,SR Legacy,Survey (FNDDS),Branded')}`;
+    `&query=${encodeURIComponent(q)}&pageSize=50` +
+    `&dataType=${encodeURIComponent('Survey (FNDDS),Foundation,SR Legacy')}`;
   const res = await fetchRetry(url);
   if (!res.ok) throw new Error(`USDA ${res.status}`);
   const data: any = await res.json();
@@ -141,11 +177,11 @@ async function searchUSDA(q: string): Promise<Scored[]> {
       fat: usdaNutrient(nutrients, ['204']),
     };
 
-    const generic = f?.dataType !== 'Branded';
-    const brand = typeof f?.brandName === 'string' ? f.brandName : f?.brandOwner;
+    const dataType = String(f?.dataType ?? '');
+    const priority = dataType === 'Survey (FNDDS)' ? 130 : dataType === 'Foundation' ? 110 : 60;
     const base = String(f?.description ?? '').trim();
     if (!base) continue;
-    const name = titleCase(base) + (brand && !generic ? ` (${titleCase(String(brand))})` : '');
+    const name = titleCase(base);
 
     // Branded/some Survey foods state a serving; derive it from per-100 when the
     // unit is weight or volume.
@@ -165,7 +201,7 @@ async function searchUSDA(q: string): Promise<Scored[]> {
       };
     }
 
-    out.push({ product: { name, serving, per100g, basisUnit }, generic });
+    out.push({ product: { name, serving, per100g, basisUnit }, priority });
   }
   return out;
 }
@@ -246,12 +282,12 @@ async function searchFatSecret(q: string): Promise<Scored[]> {
   for (const f of foods) {
     const parsed = parseFatSecretDescription(String(f?.food_description ?? ''));
     if (!parsed) continue;
-    const generic = String(f?.food_type ?? '') === 'Generic';
+    const priority = String(f?.food_type ?? '') === 'Generic' ? 120 : 70;
     const base = String(f?.food_name ?? '').trim();
     if (!base) continue;
     const brand = typeof f?.brand_name === 'string' ? f.brand_name.trim() : '';
     const name = brand && !base.toLowerCase().includes(brand.toLowerCase()) ? `${base} (${brand})` : base;
-    out.push({ product: { name, ...parsed }, generic });
+    out.push({ product: { name, ...parsed }, priority });
   }
   return out;
 }
