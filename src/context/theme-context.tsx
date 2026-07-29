@@ -1,6 +1,7 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { Colors } from '@/constants/theme';
 import { loadJSON, saveJSON, StorageKeys } from '@/lib/storage';
 
 export type ThemePreference = 'light' | 'dark';
@@ -41,11 +42,18 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     saveJSON(StorageKeys.theme, p);
   }, []);
 
-  // Keep the web document's color-scheme in sync so native form controls,
-  // scrollbars, and the browser chrome match the chosen theme.
+  // On web, keep the whole document in sync with the theme: the color-scheme
+  // (native form controls, scrollbars), the page background (which otherwise
+  // shows through on overscroll and around the floating tab bar), and the
+  // browser chrome color. The +html.tsx stylesheet hardcodes a dark page bg;
+  // these inline styles override it per the chosen theme.
   useEffect(() => {
     if (typeof document !== 'undefined') {
+      const bg = Colors[scheme].background;
       document.documentElement.style.colorScheme = scheme;
+      document.documentElement.style.backgroundColor = bg;
+      if (document.body) document.body.style.backgroundColor = bg;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
     }
   }, [scheme]);
 

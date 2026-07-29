@@ -90,7 +90,7 @@ function RootLayoutInner() {
   return (
     <NavigationThemeProvider value={buildNavigationTheme(scheme)}>
       <StatusBar style={scheme === 'light' ? 'dark' : 'light'} />
-      <View style={styles.root}>
+      <View style={[styles.root, { backgroundColor: Colors[scheme].background }]}>
         {renderRoot()}
         <ThemeFade scheme={scheme} />
       </View>
