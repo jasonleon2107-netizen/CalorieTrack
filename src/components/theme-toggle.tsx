@@ -3,6 +3,7 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 
 import { ThemeColors } from '@/constants/theme';
 import type { ThemePreference } from '@/context/theme-context';
+import { selectionHaptic } from '@/lib/haptics';
 
 function SunIcon({ color, size = 18 }: { color: string; size?: number }) {
   const rays: [number, number, number, number][] = [
@@ -45,11 +46,17 @@ export function ThemeToggle({
   onChange: (p: ThemePreference) => void;
 }) {
   const styles = createStyles(colors);
+  // Tick only when the choice actually changes, so tapping the active side is silent.
+  const pick = (p: ThemePreference) => {
+    if (p === scheme) return;
+    selectionHaptic();
+    onChange(p);
+  };
   return (
     <View style={styles.track}>
       <TouchableOpacity
         style={[styles.half, scheme === 'light' && styles.halfActive]}
-        onPress={() => onChange('light')}
+        onPress={() => pick('light')}
         accessibilityRole="button"
         accessibilityState={{ selected: scheme === 'light' }}
         accessibilityLabel="Light mode">
@@ -57,7 +64,7 @@ export function ThemeToggle({
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.half, scheme === 'dark' && styles.halfActive]}
-        onPress={() => onChange('dark')}
+        onPress={() => pick('dark')}
         accessibilityRole="button"
         accessibilityState={{ selected: scheme === 'dark' }}
         accessibilityLabel="Dark mode">

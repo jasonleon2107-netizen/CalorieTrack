@@ -1,12 +1,13 @@
 import { Platform } from 'react-native';
 
-// Macro colors and the danger state stay constant across themes — they're
-// saturated enough to read on both a white and a near-black background.
+// Macro colors and the danger state stay constant across themes. Protein and
+// fat are toned down from neon toward calmer, more legible tones (the pure
+// green and yellow were hard to read, especially on a light background).
 const shared = {
   danger: '#EF4444',
-  protein: '#4ADE80',
+  protein: '#43C079',
   carbs: '#60A5FA',
-  fat: '#FBBF24',
+  fat: '#DDA62E',
 };
 
 export interface ThemeColors {
