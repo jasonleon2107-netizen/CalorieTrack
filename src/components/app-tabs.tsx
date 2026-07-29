@@ -9,7 +9,11 @@ export default function AppTabs() {
     <NativeTabs
       backgroundColor={colors.card}
       indicatorColor={colors.cardElevated}
-      iconColor={{ selected: colors.accent, default: colors.muted }}>
+      iconColor={{ selected: colors.accent, default: colors.muted }}
+      // Explicit label colors so the tab titles stay legible in light mode
+      // (near-black) as well as dark mode (near-white), with the accent for the
+      // active tab.
+      labelStyle={{ default: { color: colors.text }, selected: { color: colors.accent } }}>
       <NativeTabs.Trigger name="index">
         <Label>Today</Label>
         <Icon sf="flame.fill" />

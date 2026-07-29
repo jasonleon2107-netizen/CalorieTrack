@@ -6,9 +6,11 @@ import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { wa } from '@/lib/anim';
 
 import { useProfile, type Profile } from '@/context/profile-context';
+import { useThemeMode } from '@/context/theme-context';
 import { Spacing, ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { SegmentedControl } from './segmented-control';
+import { ThemeToggle } from './theme-toggle';
 import {
   ACTIVITY,
   ActivityKey,
@@ -31,6 +33,7 @@ const ADJUST_OPTIONS: { value: GoalAdjust; label: string }[] = [
 
 export function ProfileForm({ onDone }: { onDone?: () => void }) {
   const { profile, saveProfile, units, setUnits } = useProfile();
+  const { scheme, setScheme } = useThemeMode();
   const colors = useThemeColors();
   const styles = createStyles(colors);
 
@@ -124,6 +127,9 @@ export function ProfileForm({ onDone }: { onDone?: () => void }) {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Your goal</Text>
           <Text style={styles.subtitle}>We calculate your daily target from these. Adjust anytime.</Text>
+
+          <Text style={styles.sectionLabel}>APPEARANCE</Text>
+          <ThemeToggle colors={colors} scheme={scheme} onChange={setScheme} />
 
           <Text style={styles.sectionLabel}>UNITS</Text>
           <SegmentedControl

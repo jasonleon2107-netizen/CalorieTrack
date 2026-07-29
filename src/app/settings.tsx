@@ -6,10 +6,12 @@ import { wa } from '@/lib/anim';
 
 import { ProfileForm } from '@/components/profile-form';
 import { SegmentedControl } from '@/components/segmented-control';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { WeightChart } from '@/components/weight-chart';
 import { roundedFont, Spacing, ThemeColors } from '@/constants/theme';
 import { dateKey, useLog } from '@/context/log-context';
 import { useProfile } from '@/context/profile-context';
+import { useThemeMode } from '@/context/theme-context';
 import { useWeight } from '@/context/weight-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { ACTIVITY, heightCmToFtIn, kgToLb, lbToKg, round } from '@/lib/health';
@@ -19,6 +21,7 @@ export default function SettingsScreen() {
   const [editing, setEditing] = useState(false);
   const colors = useThemeColors();
   const styles = createStyles(colors);
+  const { scheme, setScheme } = useThemeMode();
   const { profile, saveProfile, units, setUnits, goalKcal } = useProfile();
   const { loggedDateKeys } = useLog();
   const { entries: weightEntries, logWeight } = useWeight();
@@ -141,6 +144,10 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.weightNote}>Logging your weight updates your calorie goal.</Text>
           </Animated.View>
+
+          {/* Appearance */}
+          <Text style={styles.sectionLabel}>APPEARANCE</Text>
+          <ThemeToggle colors={colors} scheme={scheme} onChange={setScheme} />
 
           {/* Units */}
           <Text style={styles.sectionLabel}>UNITS</Text>
