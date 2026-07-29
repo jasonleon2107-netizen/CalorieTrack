@@ -29,7 +29,6 @@ const JSON_HEADERS = {
   'content-type': 'application/json',
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, OPTIONS',
-  'cache-control': 'public, max-age=300',
 };
 
 export default async (req: Request): Promise<Response> => {
@@ -44,12 +43,16 @@ export default async (req: Request): Promise<Response> => {
   if (usda.status === 'fulfilled') scored.push(...usda.value);
   if (fatsecret.status === 'fulfilled') scored.push(...fatsecret.value);
 
+  // Don't CDN-cache a response where a source errored (e.g. FatSecret throttle
+  // or a not-yet-propagated IP allowance) — otherwise a transient failure gets
+  // served empty for the full cache window. Only cache clean, complete results.
+  const degraded = usda.status === 'rejected' || fatsecret.status === 'rejected';
   const results = rankAndDedupe(scored, q);
-  return json({ results });
+  return json({ results }, 200, degraded ? 'no-store' : 'public, max-age=300');
 };
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+function json(body: unknown, status = 200, cache = 'no-store'): Response {
+  return new Response(JSON.stringify(body), { status, headers: { ...JSON_HEADERS, 'cache-control': cache } });
 }
 
 // USDA and FatSecret occasionally throttle (429) or blip (5xx). One quick retry
@@ -284,6 +287,9 @@ async function searchFatSecret(q: string): Promise<Scored[]> {
   const res = await fetchRetry(url, { headers: { authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`FatSecret ${res.status}`);
   const data: any = await res.json();
+  // FatSecret reports errors (invalid IP, throttling) as HTTP 200 with an error
+  // body. Surface it as a failure so it isn't mistaken for "no results" or cached.
+  if (data?.error) throw new Error(`FatSecret error ${data.error.code}: ${data.error.message ?? ''}`);
   const raw = data?.foods?.food;
   const foods: any[] = Array.isArray(raw) ? raw : raw ? [raw] : []; // single result isn't an array
 
