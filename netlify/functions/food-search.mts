@@ -78,39 +78,48 @@ const OFFAL = ['feet', 'paws', 'giblets', 'gizzard', 'cartilage', 'tripe', 'snou
 
 const STOPWORDS = new Set(['and', 'with', 'the', 'for', 'of', 'in', 'an', 'or', 'on', 'to', 'a']);
 
-function tokenize(q: string): string[] {
-  return q
+// Collapse punctuation to spaces so "McDonald's" matches "mcdonalds" and
+// "Chick-fil-A" matches "chick fil a".
+function norm(s: string): string {
+  return s
     .toLowerCase()
-    .split(/[^a-z0-9]+/)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(q: string): string[] {
+  return norm(q)
+    .split(' ')
     .filter((t) => t.length > 1 && !STOPWORDS.has(t));
 }
 
 function rankAndDedupe(scored: Scored[], query: string): FoodProduct[] {
-  const q = query.toLowerCase().trim();
-  const tokens = tokenize(q);
+  const qn = norm(query);
+  const tokens = tokenize(query);
 
   const withScore = scored
     .map((s) => {
-      const name = s.product.name.toLowerCase();
+      const name = norm(s.product.name);
       let matched = 0;
       for (const t of tokens) if (name.includes(t)) matched++;
 
       // Drop rows that match none of the query words — USDA relevance can be
       // very loose, and these are the "why is this even here" results.
-      if (matched === 0 && !name.includes(q)) return null;
+      if (matched === 0 && !name.includes(qn)) return null;
 
       let score = s.priority;
-      if (name === q) score += 500; // exact name
-      if (name.startsWith(q)) score += 220; // "chicken breast, grilled"
+      if (name === qn) score += 500; // exact name
+      if (name.startsWith(qn)) score += 220; // "chicken breast, grilled"
       // USDA inverts names ("Rice, white, cooked"), so the canonical food starts
       // with one of the query words, while combo dishes start with another
       // ingredient ("Beans and white rice"). Reward the canonical form.
       if (tokens.some((t) => name.startsWith(t))) score += 160;
-      if (tokens.length > 1 && name.includes(q)) score += 110; // whole phrase present
+      if (tokens.length > 1 && name.includes(qn)) score += 110; // whole phrase present
       if (tokens.length) score += (matched / tokens.length) * 200; // share of words matched
       if (tokens.length && matched === tokens.length) score += 90; // all words present
-      score -= Math.min(name.length, 90) * 0.6; // prefer the plain, concise entry
-      if (OFFAL.some((w) => name.includes(w) && !q.includes(w))) score -= 250;
+      score -= Math.min(s.product.name.length, 90) * 0.6; // prefer the plain, concise entry
+      if (OFFAL.some((w) => name.includes(w) && !qn.includes(w))) score -= 250;
 
       return { product: s.product, score };
     })
