@@ -1,5 +1,5 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { Appearance, Platform, useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { loadJSON, saveJSON, StorageKeys } from '@/lib/storage';
@@ -34,6 +34,13 @@ export function ThemeProvider({ children }: PropsWithChildren) {
   }, []);
 
   const scheme = stored ?? systemScheme;
+
+  // Drive the native app-wide appearance from the choice so the OS tab bar,
+  // keyboard, and root window follow it too (not just our JS colors). `null`
+  // means "follow the system", which is the default until the user picks.
+  useEffect(() => {
+    if (Platform.OS !== 'web') Appearance.setColorScheme(stored);
+  }, [stored]);
 
   // Persist on the user action itself (never in an effect), so the empty
   // initial state can't overwrite a stored choice on launch.
