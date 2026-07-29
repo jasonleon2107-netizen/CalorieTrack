@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 // green and yellow were hard to read, especially on a light background).
 const shared = {
   danger: '#EF4444',
-  protein: '#43C079',
+  protein: '#37A866',
   carbs: '#60A5FA',
   fat: '#DDA62E',
 };
