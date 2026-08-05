@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { A as Animated } from '@/lib/a';
@@ -62,6 +62,20 @@ export default function SettingsScreen() {
   };
 
   const confirmReset = () => {
+    // react-native-web doesn't implement Alert.alert with buttons, so on web the
+    // dialog never appears and the reset never runs. Use the browser's own confirm,
+    // clear everything, and reload so the fresh (empty) state takes effect.
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return;
+      if (!window.confirm('Reset everything? This permanently deletes your profile, food log, and weight history.')) return;
+      try {
+        window.localStorage.clear();
+      } catch {
+        // ignore
+      }
+      window.location.reload();
+      return;
+    }
     Alert.alert('Reset everything?', 'This permanently deletes your profile, food log, and weight history.', [
       { text: 'Cancel', style: 'cancel' },
       {
