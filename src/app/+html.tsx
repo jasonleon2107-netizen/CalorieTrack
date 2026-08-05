@@ -37,9 +37,23 @@ export default function Root({ children }: PropsWithChildren) {
 
 const RESET_STYLE = `
   html, body { background-color: #0E0F12; }
-  /* Move expo-router's floating web tab bar from top-center to bottom-center. */
+  /* Center the app in a phone-width column so it reads like the native app on a
+     desktop browser. On phones the column is wider than the screen, so it stays
+     full-bleed. A soft shadow only appears once there's room beside the column. */
+  body { display: flex; flex-direction: column; align-items: center; }
+  #root { width: 100%; max-width: 480px; height: 100%; }
+  @media (min-width: 520px) {
+    #root { box-shadow: 0 0 60px rgba(0, 0, 0, 0.35); }
+  }
+  /* Move expo-router's floating web tab bar from top-center to bottom-center.
+     It's fixed and viewport-centered, which lines up with the centered column. */
   [aria-label="Main"] {
     top: auto !important;
     bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+  /* Respect reduced-motion, and act as a safety net: collapse entrance
+     animations to instant so content can never sit on a hidden start frame. */
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; animation-delay: 0ms !important; }
   }
 `;

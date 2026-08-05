@@ -26,7 +26,9 @@ import Animated, {
 import { roundedFont, Spacing, ThemeColors } from '@/constants/theme';
 import { useCustomFoods } from '@/context/custom-foods-context';
 import { dateKey, defaultMealForNow, MEALS, MealCategory, useLog } from '@/context/log-context';
+import { A } from '@/lib/a';
 import { wa } from '@/lib/anim';
+import { appear } from '@/lib/appear';
 import { askMealAdvisor, CoachMeal } from '@/lib/coach';
 import { selectionHaptic, successHaptic } from '@/lib/haptics';
 import { Dropdown } from './dropdown';
@@ -196,8 +198,8 @@ export function CoachChat({ colors, onClose, onLogged }: { colors: ThemeColors; 
         </KeyboardAvoidingView>
 
         {toast && (
-          <Animated.View
-            style={styles.toast}
+          <A.View
+            style={[styles.toast, appear('down', 0, 200)]}
             entering={wa(FadeInDown.duration(200))}
             exiting={wa(FadeOut.duration(200))}>
             <Text style={styles.toastText} numberOfLines={1}>
@@ -206,7 +208,7 @@ export function CoachChat({ colors, onClose, onLogged }: { colors: ThemeColors; 
             <TouchableOpacity onPress={undo} hitSlop={10}>
               <Text style={styles.toastUndo}>Undo</Text>
             </TouchableOpacity>
-          </Animated.View>
+          </A.View>
         )}
       </SafeAreaView>
     </View>
@@ -216,7 +218,7 @@ export function CoachChat({ colors, onClose, onLogged }: { colors: ThemeColors; 
 function EmptyState({ colors, onPick }: { colors: ThemeColors; onPick: (s: string) => void }) {
   const styles = createStyles(colors);
   return (
-    <Animated.View style={styles.empty} entering={wa(FadeIn.duration(240))}>
+    <A.View style={[styles.empty, appear('in', 0, 240)]} entering={wa(FadeIn.duration(240))}>
       <Text style={styles.emptyTitle}>Eating out?</Text>
       <Text style={styles.emptyBody}>
         Tell me the place and your goal. I pull the real menu, build the best meals to order, and you add one in a tap.
@@ -228,7 +230,7 @@ function EmptyState({ colors, onPick }: { colors: ThemeColors; onPick: (s: strin
           </TouchableOpacity>
         ))}
       </View>
-    </Animated.View>
+    </A.View>
   );
 }
 
@@ -253,24 +255,24 @@ function MessageBlock({
 
   if (msg.role === 'user') {
     return (
-      <Animated.View style={styles.userRow} entering={wa(FadeInDown.duration(200))}>
+      <A.View style={[styles.userRow, appear('down', 0, 200)]} entering={wa(FadeInDown.duration(200))}>
         <View style={styles.userBubble}>
           <Text style={styles.userText}>{msg.text}</Text>
         </View>
-      </Animated.View>
+      </A.View>
     );
   }
 
   if (msg.role === 'error') {
     return (
-      <Animated.View style={styles.assistantRow} entering={wa(FadeInDown.duration(200))}>
+      <A.View style={[styles.assistantRow, appear('down', 0, 200)]} entering={wa(FadeInDown.duration(200))}>
         <View style={styles.errorBubble}>
           <Text style={styles.errorText}>{msg.text}</Text>
           <TouchableOpacity onPress={() => onRetry(msg.retry)} hitSlop={8}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </Animated.View>
+      </A.View>
     );
   }
 
@@ -279,7 +281,7 @@ function MessageBlock({
   const fallback = msg.meals.length === 0 && !msg.note ? "I couldn't put together a recommendation. Try again or rephrase." : null;
 
   return (
-    <Animated.View style={styles.assistantRow} entering={wa(FadeInDown.duration(200))}>
+    <A.View style={[styles.assistantRow, appear('down', 0, 200)]} entering={wa(FadeInDown.duration(200))}>
       {(msg.note || fallback) && (
         <View style={styles.assistantBubble}>
           <Text style={styles.assistantText}>{msg.note ?? fallback}</Text>
@@ -296,7 +298,7 @@ function MessageBlock({
           onSave={() => onSave(ml)}
         />
       ))}
-    </Animated.View>
+    </A.View>
   );
 }
 
@@ -360,13 +362,13 @@ function MealCard({
 function TypingBubble({ colors }: { colors: ThemeColors }) {
   const styles = createStyles(colors);
   return (
-    <Animated.View style={styles.assistantRow} entering={wa(FadeIn.duration(160))} exiting={wa(FadeOut.duration(120))}>
+    <A.View style={[styles.assistantRow, appear('in', 0, 160)]} entering={wa(FadeIn.duration(160))} exiting={wa(FadeOut.duration(120))}>
       <View style={[styles.assistantBubble, styles.typingBubble]}>
         <Dot colors={colors} delay={0} />
         <Dot colors={colors} delay={160} />
         <Dot colors={colors} delay={320} />
       </View>
-    </Animated.View>
+    </A.View>
   );
 }
 

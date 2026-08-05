@@ -49,8 +49,14 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
   },
 };
 
-// SF Rounded numerals on iOS give figures a friendly, app-like feel.
-export const roundedFont = Platform.select({ ios: 'ui-rounded', default: undefined });
+// SF Rounded numerals give figures a friendly, app-like feel. `ui-rounded` is a
+// CSS system keyword too: Safari/iOS web map it to SF Rounded (so the website
+// matches the app), and other browsers fall back through the stack.
+export const roundedFont = Platform.select({
+  ios: 'ui-rounded',
+  web: 'ui-rounded, system-ui, sans-serif',
+  default: undefined,
+});
 
 export const Fonts = Platform.select({
   ios: {

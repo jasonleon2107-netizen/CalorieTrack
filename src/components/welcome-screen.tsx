@@ -1,7 +1,9 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { A as Animated } from '@/lib/a';
 import { wa } from '@/lib/anim';
+import { appear } from '@/lib/appear';
 import Svg, { Circle } from 'react-native-svg';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
@@ -26,7 +28,7 @@ export function WelcomeScreen({ onStart }: { onStart: () => void }) {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.content}>
-          <Animated.View entering={wa(FadeIn.duration(500))} style={styles.ringWrap}>
+          <Animated.View entering={wa(FadeIn.duration(500))} style={[styles.ringWrap, appear('in', 0, 500)]}>
             <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ring}>
               <Circle
                 cx={RING_SIZE / 2}
@@ -50,10 +52,10 @@ export function WelcomeScreen({ onStart }: { onStart: () => void }) {
             </Svg>
           </Animated.View>
 
-          <Animated.Text entering={wa(FadeInDown.delay(120).duration(450))} style={styles.title}>
+          <Animated.Text entering={wa(FadeInDown.delay(120).duration(450))} style={[styles.title, appear('down', 120, 450)]}>
             Calorie Tracker
           </Animated.Text>
-          <Animated.Text entering={wa(FadeInDown.delay(200).duration(450))} style={styles.subtitle}>
+          <Animated.Text entering={wa(FadeInDown.delay(200).duration(450))} style={[styles.subtitle, appear('down', 200, 450)]}>
             Know what you eat. Hit your targets.
           </Animated.Text>
 
@@ -62,7 +64,7 @@ export function WelcomeScreen({ onStart }: { onStart: () => void }) {
               <Animated.View
                 key={f.title}
                 entering={wa(FadeInDown.delay(300 + i * 90).duration(450))}
-                style={styles.featureRow}>
+                style={[styles.featureRow, appear('down', 300 + i * 90, 450)]}>
                 <View style={[styles.featureDot, { backgroundColor: f.color }]} />
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>{f.title}</Text>
@@ -73,11 +75,11 @@ export function WelcomeScreen({ onStart }: { onStart: () => void }) {
           </View>
         </View>
 
-        <Animated.View entering={wa(FadeInDown.delay(600).duration(450))} style={styles.footer}>
+        <Animated.View entering={wa(FadeInDown.delay(600).duration(450))} style={[styles.footer, appear('down', 600, 450)]}>
           <TouchableOpacity style={styles.button} onPress={onStart} activeOpacity={0.85}>
             <Text style={styles.buttonText}>Get started</Text>
           </TouchableOpacity>
-          <Text style={styles.footnote}>Takes about a minute. Everything stays on your phone.</Text>
+          <Text style={styles.footnote}>Takes about a minute. Everything stays on your device.</Text>
         </Animated.View>
       </SafeAreaView>
     </View>

@@ -3,7 +3,9 @@ import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut, LinearTransition, runOnJS, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { A } from '@/lib/a';
 import { wa } from '@/lib/anim';
+import { appear } from '@/lib/appear';
 import { selectionHaptic, successHaptic, tapHaptic } from '@/lib/haptics';
 
 import { AddFood } from '@/components/add-food';
@@ -199,10 +201,10 @@ export default function TodayScreen() {
           )}
 
           {entries.length === 0 ? (
-            <Animated.View style={styles.emptyHero} entering={wa(FadeIn.duration(220))}>
+            <A.View style={[styles.emptyHero, appear('in', 0, 220)]} entering={wa(FadeIn.duration(220))}>
               <Text style={styles.emptyHeroTitle}>Nothing logged yet</Text>
               <Text style={styles.emptyHeroBody}>Tap the + button to log your first meal.{'\n'}It only takes a few seconds.</Text>
-            </Animated.View>
+            </A.View>
           ) : (
             MEALS.map((m) => {
               const mealEntries = entries.filter((e) => e.meal === m.key);
@@ -220,21 +222,22 @@ export default function TodayScreen() {
 
                   {open &&
                     (mealEntries.length === 0 ? (
-                      <Animated.Text
-                        style={styles.emptyText}
+                      <A.Text
+                        style={[styles.emptyText, appear('in', 0, 180)]}
                         entering={wa(FadeIn.duration(180))}
                         exiting={wa(FadeOut.duration(120))}>
                         {MEAL_EMPTY[m.key]}
-                      </Animated.Text>
+                      </A.Text>
                     ) : (
                       mealEntries.map((item) => (
-                        <Animated.View
+                        <A.View
                           key={item.id}
                           entering={wa(FadeIn.duration(200))}
                           exiting={wa(FadeOut.duration(150))}
-                          layout={LinearTransition.duration(200)}>
+                          layout={LinearTransition.duration(200)}
+                          style={appear('in', 0, 200)}>
                           <EntryRow colors={colors} entry={item} onDelete={() => removeEntry(key, item.id)} />
-                        </Animated.View>
+                        </A.View>
                       ))
                     ))}
                 </Animated.View>
@@ -254,13 +257,13 @@ export default function TodayScreen() {
         </TouchableOpacity>
 
         {toast && (
-          <Animated.View
-            style={[styles.toast, { bottom: fabBottom + 66 }]}
+          <A.View
+            style={[styles.toast, { bottom: fabBottom + 66 }, appear('in', 0, 200)]}
             pointerEvents="none"
             entering={wa(FadeIn.duration(200))}
             exiting={wa(FadeOut.duration(200))}>
             <Text style={styles.toastText}>{toast}</Text>
-          </Animated.View>
+          </A.View>
         )}
       </SafeAreaView>
 

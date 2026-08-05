@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import { FadeIn, LinearTransition } from 'react-native-reanimated';
+import { A as Animated } from '@/lib/a';
 import { wa } from '@/lib/anim';
+import { appear } from '@/lib/appear';
 
 import { ProfileForm } from '@/components/profile-form';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -81,7 +83,7 @@ export default function SettingsScreen() {
           <Text style={styles.title}>Settings</Text>
 
           {/* Streak */}
-          <Animated.View style={styles.streakCard} entering={wa(FadeIn.duration(220))}>
+          <Animated.View style={[styles.streakCard, appear('in', 0, 220)]} entering={wa(FadeIn.duration(220))}>
             <View style={styles.streakMain}>
               <Text style={styles.streakNumber}>{streaks.current}</Text>
               <View>

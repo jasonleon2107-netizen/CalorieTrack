@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, FadeInUp, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { A } from '@/lib/a';
 import { wa } from '@/lib/anim';
+import { appear } from '@/lib/appear';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
 
@@ -41,12 +43,12 @@ export function Dropdown<T extends string>({
         <>
           {/* Backdrop catches taps outside the menu to dismiss it. */}
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-          <Animated.View
-            style={styles.menu}
+          <A.View
+            style={[styles.menu, appear('up', 0, 180)]}
             entering={wa(FadeInUp.duration(180))}
             exiting={wa(FadeOut.duration(140))}>
             {options.map((o, i) => (
-              <Animated.View key={o.value} entering={wa(FadeIn.delay(i * 25).duration(160))}>
+              <A.View key={o.value} entering={wa(FadeIn.delay(i * 25).duration(160))} style={appear('in', i * 25, 160)}>
                 <TouchableOpacity
                   style={styles.option}
                   activeOpacity={0.6}
@@ -57,9 +59,9 @@ export function Dropdown<T extends string>({
                   <Text style={[styles.optionText, o.value === value && styles.optionTextActive]}>{o.label}</Text>
                   {o.value === value && <Text style={styles.check}>✓</Text>}
                 </TouchableOpacity>
-              </Animated.View>
+              </A.View>
             ))}
-          </Animated.View>
+          </A.View>
         </>
       )}
     </View>
