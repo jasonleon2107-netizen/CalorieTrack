@@ -49,12 +49,13 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
   },
 };
 
-// SF Rounded numerals give figures a friendly, app-like feel. `ui-rounded` is a
-// CSS system keyword too: Safari/iOS web map it to SF Rounded (so the website
-// matches the app), and other browsers fall back through the stack.
+// SF Rounded numerals give figures a friendly, app-like feel on iOS. On web we
+// leave it undefined so figures inherit the app's default system sans stack:
+// react-native-web quotes a fontFamily as a single family, so a comma stack like
+// "ui-rounded, system-ui, sans-serif" becomes an invalid name and falls back to
+// Times New Roman. Matching the rest of the UI beats a broken rounded face.
 export const roundedFont = Platform.select({
   ios: 'ui-rounded',
-  web: 'ui-rounded, system-ui, sans-serif',
   default: undefined,
 });
 

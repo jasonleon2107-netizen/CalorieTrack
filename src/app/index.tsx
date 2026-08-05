@@ -107,7 +107,10 @@ export default function TodayScreen() {
   // Float the FAB clear of the tab bar. On web the tab bar is a floating pill
   // at the bottom-centre (see +html.tsx); on native it's the OS bottom bar
   // above the home-indicator inset.
-  const fabBottom = Platform.OS === 'web' ? 88 : insets.bottom + 49 + Spacing.three;
+  // On web the floating tab bar sits in normal flow and reserves its own space,
+  // so the FAB only needs a small offset to float just above it (88 was tuned for
+  // the old fixed tab bar and left a big gap).
+  const fabBottom = Platform.OS === 'web' ? 6 : insets.bottom + 49 + Spacing.three;
   // Enough scroll padding that the last meal's calories always clear the FAB.
   const listBottomPad = fabBottom + 60 + Spacing.four;
 
