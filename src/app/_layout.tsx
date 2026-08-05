@@ -7,9 +7,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import AppTabs from '@/components/app-tabs';
+import { InstallScreen } from '@/components/install-screen';
 import { ProfileForm } from '@/components/profile-form';
 import { WelcomeScreen } from '@/components/welcome-screen';
 import { Colors } from '@/constants/theme';
+import { readInstallState } from '@/lib/pwa';
 import { CustomFoodsProvider, useCustomFoods } from '@/context/custom-foods-context';
 import { LogProvider, useLog } from '@/context/log-context';
 import { ProfileProvider, useProfile } from '@/context/profile-context';
@@ -70,6 +72,9 @@ function RootLayoutInner() {
   const ready = profileHydrated && logHydrated && weightHydrated && foodsHydrated && themeHydrated;
   // Only shown on a first run, before any profile exists.
   const [startedSetup, setStartedSetup] = useState(false);
+  // After onboarding, offer "Add to Home Screen" once on eligible web builds.
+  const [installEligible] = useState(() => readInstallState().eligible);
+  const [installDone, setInstallDone] = useState(false);
 
   // Keep the splash up until stored data is loaded, so returning users never
   // see a flash of the onboarding form.
@@ -82,7 +87,13 @@ function RootLayoutInner() {
   }
 
   const renderRoot = () => {
-    if (profile) return <AppTabs />;
+    if (profile) {
+      // Fresh onboarders on eligible web see the install steps once, then the app.
+      if (startedSetup && installEligible && !installDone) {
+        return <InstallScreen onContinue={() => setInstallDone(true)} />;
+      }
+      return <AppTabs />;
+    }
     if (!startedSetup) return <WelcomeScreen onStart={() => setStartedSetup(true)} />;
     return <ProfileForm />;
   };
