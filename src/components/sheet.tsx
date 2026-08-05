@@ -50,14 +50,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
+    // Sit the card low, like a bottom sheet floating just above the edge, with
+    // the app peeking through above it.
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingBottom: 16,
   },
   card: {
     width: '100%',
     maxWidth: 460,
-    height: '94%',
-    maxHeight: 920,
+    height: '92%',
+    maxHeight: 900,
     borderRadius: 22,
     overflow: 'hidden',
   },

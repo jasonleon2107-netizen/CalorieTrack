@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,6 +24,7 @@ import { MEALS, MealCategory, defaultMealForNow, type LogEntry } from '@/context
 import { A as Animated } from '@/lib/a';
 import { wa } from '@/lib/anim';
 import { appear } from '@/lib/appear';
+import { confirmDestructive } from '@/lib/confirm';
 import { FoodProduct, fetchProductDetails, searchFoods } from '@/lib/food';
 import { round } from '@/lib/health';
 import { BarcodeScanner } from './barcode-scanner';
@@ -74,13 +74,11 @@ export function AddFood({
       onClose();
       return;
     }
-    Alert.alert(
+    confirmDestructive(
       'Discard items?',
       `You have ${staged.length} item${staged.length === 1 ? '' : 's'} not yet added to your log.`,
-      [
-        { text: 'Keep editing', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: onClose },
-      ]
+      'Discard',
+      onClose
     );
   };
 
@@ -343,10 +341,7 @@ function SearchTab({ colors, onStage }: { colors: ThemeColors; onStage: (entry: 
                   activeOpacity={0.6}
                   onPress={() => setSelected(customFoodAsProduct(f))}
                   onLongPress={() =>
-                    Alert.alert('Delete saved food?', f.name, [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => removeFood(f.id) },
-                    ])
+                    confirmDestructive('Delete saved food?', f.name, 'Delete', () => removeFood(f.id))
                   }>
                   <View style={styles.resultInfo}>
                     <Text style={styles.resultName} numberOfLines={1}>
