@@ -8,6 +8,7 @@ import { selectionHaptic, successHaptic, tapHaptic } from '@/lib/haptics';
 
 import { AddFood } from '@/components/add-food';
 import { CalorieRing, type RingMetric } from '@/components/calorie-ring';
+import { CoachChat } from '@/components/coach-chat';
 import { Sheet } from '@/components/sheet';
 import { EntryRow } from '@/components/entry-row';
 import { MacroBar } from '@/components/macro-bar';
@@ -70,6 +71,7 @@ export default function TodayScreen() {
   }, [toast]);
   const insets = useSafeAreaInsets();
   const [addingFood, setAddingFood] = useState(false);
+  const [coaching, setCoaching] = useState(false);
   const [openMeals, setOpenMeals] = useState<Record<MealCategory, boolean>>(ALL_OPEN);
   const [ringMetric, setRingMetric] = useState<RingMetric>('calories');
   const [pulseKey, setPulseKey] = useState(0);
@@ -242,6 +244,11 @@ export default function TodayScreen() {
         </ScrollView>
         </GestureDetector>
 
+        <TouchableOpacity style={[styles.coachPill, { bottom: fabBottom }]} onPress={() => setCoaching(true)} activeOpacity={0.85}>
+          <Text style={styles.coachPillIcon}>✦</Text>
+          <Text style={styles.coachPillText}>Coach</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={[styles.fab, { bottom: fabBottom }]} onPress={() => setAddingFood(true)}>
           <Text style={styles.fabIcon}>+</Text>
         </TouchableOpacity>
@@ -268,6 +275,10 @@ export default function TodayScreen() {
             successHaptic();
           }}
         />
+      </Sheet>
+
+      <Sheet visible={coaching} onClose={() => setCoaching(false)} colors={colors}>
+        <CoachChat colors={colors} onClose={() => setCoaching(false)} onLogged={() => setPulseKey((k) => k + 1)} />
       </Sheet>
     </View>
   );
@@ -337,6 +348,28 @@ function createStyles(colors: ThemeColors) {
       elevation: 6,
     },
     fabIcon: { fontSize: 30, color: '#FFFFFF', fontWeight: '400', marginTop: -2 },
+    // Coach entry point: a pill at bottom-left, distinct from the accent FAB so
+    // the two reads as different actions (log vs ask).
+    coachPill: {
+      position: 'absolute',
+      left: Spacing.four,
+      height: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.one,
+      paddingHorizontal: 18,
+      borderRadius: 24,
+      backgroundColor: colors.card,
+      borderWidth: 1.5,
+      borderColor: colors.accent,
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 5,
+    },
+    coachPillIcon: { fontSize: 15, color: colors.accent, marginTop: -1 },
+    coachPillText: { fontSize: 15, fontWeight: '700', color: colors.accent },
     toast: {
       position: 'absolute',
       left: Spacing.four,

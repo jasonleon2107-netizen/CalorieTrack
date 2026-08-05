@@ -34,19 +34,30 @@ const JSON_HEADERS = {
 export default async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: JSON_HEADERS });
 
-  const q = (new URL(req.url).searchParams.get('q') ?? '').trim();
+  const params = new URL(req.url).searchParams;
+  const q = (params.get('q') ?? '').trim();
   if (!q) return json({ results: [] });
 
-  // Run both sources in parallel; a failure in one must not sink the other.
-  const [usda, fatsecret] = await Promise.allSettled([searchUSDA(q), searchFatSecret(q)]);
+  // Optional source filter. Restaurant/brand queries pass source=fatsecret so
+  // USDA's generic whole foods (e.g. "Chicken Fillets" for a Chick-fil-A search)
+  // don't outrank the actual branded menu items. Default runs both.
+  const source = (params.get('source') ?? '').toLowerCase();
+  const useUsda = source !== 'fatsecret';
+  const useFatsecret = source !== 'usda';
+
+  // Run the selected sources in parallel; a failure in one must not sink the other.
+  const [usda, fatsecret] = await Promise.allSettled([
+    useUsda ? searchUSDA(q) : Promise.resolve<Scored[]>([]),
+    useFatsecret ? searchFatSecret(q) : Promise.resolve<Scored[]>([]),
+  ]);
   const scored: Scored[] = [];
   if (usda.status === 'fulfilled') scored.push(...usda.value);
   if (fatsecret.status === 'fulfilled') scored.push(...fatsecret.value);
 
-  // Don't CDN-cache a response where a source errored (e.g. FatSecret throttle
-  // or a not-yet-propagated IP allowance) — otherwise a transient failure gets
-  // served empty for the full cache window. Only cache clean, complete results.
-  const degraded = usda.status === 'rejected' || fatsecret.status === 'rejected';
+  // Don't CDN-cache a response where a source we actually ran errored (e.g.
+  // FatSecret throttle or a not-yet-propagated IP allowance) — otherwise a
+  // transient failure gets served empty for the full cache window.
+  const degraded = (useUsda && usda.status === 'rejected') || (useFatsecret && fatsecret.status === 'rejected');
   const results = rankAndDedupe(scored, q);
   return json({ results }, 200, degraded ? 'no-store' : 'public, max-age=300');
 };

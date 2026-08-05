@@ -54,7 +54,8 @@ type LogContextValue = {
   recents: RecentFood[];
   milestones: string[];
   markMilestone: (id: string) => void;
-  addEntry: (key: string, entry: Omit<LogEntry, 'id'>) => void;
+  // Returns the new entry's id so callers can offer an Undo.
+  addEntry: (key: string, entry: Omit<LogEntry, 'id'>) => string;
   addEntries: (key: string, entries: Omit<LogEntry, 'id'>[]) => void;
   removeEntry: (key: string, id: string) => void;
   hydrated: boolean;
@@ -110,11 +111,14 @@ export function LogProvider({ children }: PropsWithChildren) {
       entriesFor: (key) => logByDate[key] ?? [],
       loggedDateKeys: Object.keys(logByDate).filter((k) => (logByDate[k]?.length ?? 0) > 0),
       addEntry: (key, entry) => {
+        // Compute the id up front so it can be both stored and returned.
+        const id = makeId();
         setLogByDate((prev) => ({
           ...prev,
-          [key]: [...(prev[key] ?? []), { ...entry, id: makeId() }],
+          [key]: [...(prev[key] ?? []), { ...entry, id }],
         }));
         setRecents((prev) => pushRecent(prev, entry));
+        return id;
       },
       // Commit a batch in one update so staged items land together.
       addEntries: (key, entries) => {

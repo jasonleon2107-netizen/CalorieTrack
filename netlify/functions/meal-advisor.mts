@@ -1,12 +1,13 @@
 // Grounded "eat out" meal-recommendation chatbot.
 //
-// Given a request like "Chick-fil-A, low cal high protein", it pulls that
-// restaurant's REAL menu items from our food-search proxy (USDA + FatSecret)
-// and asks Claude to recommend from ONLY those items. Nutrition numbers come
-// from the database, never from the model, so the advice stays accurate.
+// Given a request like "Chick-fil-A, low carb", it pulls that restaurant's REAL
+// menu items from our food-search proxy and asks Claude to assemble the best 2-3
+// COMPLETE MEALS (entree plus sides/drink) from only those items. The model only
+// chooses which items group into a meal; every calorie and macro number is summed
+// server-side from the database, never produced by the model, so advice stays accurate.
 //
-// Two cheap Haiku calls: (1) turn the free-text request into a short DB search
-// query, (2) recommend from the real items that search returns.
+// Two cheap Haiku calls: (1) classify the request into a DB search query and
+// whether it names a specific restaurant, (2) assemble meals from the real items.
 //
 // Env var: ANTHROPIC_API_KEY (set in the Netlify site).
 
@@ -27,6 +28,15 @@ type FoodProduct = {
   per100g: Nutrition | null;
   basisUnit: 'g' | 'ml';
 };
+type Meal = {
+  title: string;
+  reason: string;
+  items: FoodProduct[];
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
 
 export default async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: JSON_HEADERS });
@@ -45,19 +55,29 @@ export default async (req: Request): Promise<Response> => {
   if (!message) return json({ error: 'Say what you feel like eating.' }, 400);
 
   try {
-    // 1. Reduce the free-text request to a food-database search query.
-    const query = await extractQuery(key, message);
-    // 2. Pull the real menu / food items for that query.
-    const items = await lookupFoods(new URL(req.url).origin, query);
+    // 1. Classify the request: what to search for, and is it a specific brand?
+    const { query, restaurant } = await classify(key, message);
+    // 2. Pull the real menu items. Restaurant queries use FatSecret only.
+    const items = await lookupFoods(new URL(req.url).origin, query, restaurant);
     if (items.length === 0) {
       return json({
-        reply: `I couldn't find menu data for "${query}". Try naming the restaurant or dish more directly.`,
-        items: [],
+        query,
+        restaurant,
+        meals: [],
+        note: `I couldn't find menu data for "${query}". Try naming the restaurant or dish more directly.`,
       });
     }
-    // 3. Recommend from ONLY those real items.
-    const reply = await recommend(key, message, items);
-    return json({ reply, query, items: items.slice(0, 12) });
+    // 3. Assemble the best 2-3 complete meals from ONLY those items.
+    const meals = await recommendMeals(key, message, items);
+    if (meals.length === 0) {
+      return json({
+        query,
+        restaurant,
+        meals: [],
+        note: `I found items for "${query}" but nothing that clearly fits. Try rephrasing your goal.`,
+      });
+    }
+    return json({ query, restaurant, meals });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'The assistant is busy. Try again shortly.' }, 502);
   }
@@ -92,45 +112,133 @@ async function callClaude(key: string, system: string, user: string, maxTokens: 
   return String(text).trim();
 }
 
-async function extractQuery(key: string, message: string): Promise<string> {
-  const system =
-    'Extract the restaurant or food to look up in a nutrition database from the user message. ' +
-    'Reply with ONLY a short search query of 1-4 words (e.g. "Chick-fil-A", "Chipotle bowl", "grilled chicken"). ' +
-    'No punctuation beyond what the name needs, no explanation.';
-  const q = await callClaude(key, system, message, 32);
-  // Guard against a chatty reply; keep it to the first line, capped.
-  return q.split('\n')[0].slice(0, 60).trim() || message.slice(0, 60);
+// Turn a possibly-fenced, possibly-chatty model reply into a parsed object by
+// grabbing the first {...} block. Returns null when there's nothing usable.
+function parseJsonObject(raw: string): any {
+  if (!raw) return null;
+  let s = raw.trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    return JSON.parse(s.slice(start, end + 1));
+  } catch {
+    return null;
+  }
 }
 
-// Render an item's nutrition compactly for the model, preferring a per-serving
-// figure (what a user actually orders) and falling back to per-100.
-function itemLine(p: FoodProduct): string | null {
-  const n = p.serving ?? p.per100g;
-  if (!n) return null;
-  const basis = p.serving ? p.serving.label : `100${p.basisUnit}`;
-  return `- ${p.name} (${basis}): ${Math.round(n.kcal)} cal, ${Math.round(n.protein)}g protein, ${Math.round(
-    n.carbs
-  )}g carbs, ${Math.round(n.fat)}g fat`;
+// Strip markdown so model reasons render as clean plain text in the app.
+function stripMd(s: string): string {
+  return s
+    .replace(/\*\*/g, '')
+    .replace(/[*_`#>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-async function recommend(key: string, message: string, items: FoodProduct[]): Promise<string> {
-  const menu = items.map(itemLine).filter(Boolean).join('\n');
+async function classify(key: string, message: string): Promise<{ query: string; restaurant: boolean }> {
   const system =
-    'You are a concise nutrition assistant helping someone order while eating out. ' +
-    'Recommend ONLY from the menu items listed in the user message. Never invent items or nutrition numbers, ' +
-    'and never state a number that is not in the list. Pick the 1-3 best matches for their goal, give each ' +
-    "item's calories and protein, and add one short sentence of reasoning. If nothing fits their goal, say so " +
-    'plainly and suggest the closest option. Keep it under 120 words. Use "cal", not "kcal".';
-  const user = `My request: ${message}\n\nAvailable menu items (the only ones you may recommend):\n${menu}`;
-  return callClaude(key, system, user, 400);
+    'Identify what to look up in a nutrition database from the user message. ' +
+    'The query must name ONLY the restaurant or food, never the goal or diet words ' +
+    '(drop "low carb", "high protein", "under 500 cal", "post-workout", etc.). ' +
+    'Reply ONLY with compact JSON, no prose and no code fence: ' +
+    '{"query":"<1-3 word restaurant or food name>","restaurant":<true|false>}. ' +
+    'Set restaurant to true only when the user named a specific restaurant or brand chain ' +
+    '(e.g. Chick-fil-A, Chipotle, Starbucks, McDonald\'s). ' +
+    'Examples: "Chick-fil-A low carb" -> {"query":"Chick-fil-A","restaurant":true}; ' +
+    '"Chipotle bowl, high protein" -> {"query":"Chipotle bowl","restaurant":true}.';
+  const raw = await callClaude(key, system, message, 60);
+  const parsed = parseJsonObject(raw);
+  const query =
+    parsed && typeof parsed.query === 'string' && parsed.query.trim()
+      ? parsed.query.trim().slice(0, 60)
+      : message.slice(0, 60);
+  const restaurant = parsed?.restaurant === true;
+  return { query, restaurant };
 }
 
 // ---- Food lookup (reuses our own food-search proxy) -----------------------
 
-async function lookupFoods(origin: string, query: string): Promise<FoodProduct[]> {
-  const res = await fetch(`${origin}/.netlify/functions/food-search?q=${encodeURIComponent(query)}`);
+async function lookupFoods(origin: string, query: string, restaurant: boolean): Promise<FoodProduct[]> {
+  const src = restaurant ? '&source=fatsecret' : '';
+  const res = await fetch(`${origin}/.netlify/functions/food-search?q=${encodeURIComponent(query)}${src}`);
   if (!res.ok) return [];
   const data: any = await res.json();
   const results: FoodProduct[] = Array.isArray(data?.results) ? data.results : [];
   return results.slice(0, 25);
+}
+
+// ---- Meal assembly --------------------------------------------------------
+
+// Sum the real per-serving (or per-100 fallback) numbers for the chosen items.
+// This is the only source of a meal's totals; the model never supplies numbers.
+function mealNutrition(items: FoodProduct[]): Nutrition {
+  let kcal = 0,
+    protein = 0,
+    carbs = 0,
+    fat = 0;
+  for (const p of items) {
+    const n = p.serving ?? p.per100g;
+    if (!n) continue;
+    kcal += n.kcal;
+    protein += n.protein;
+    carbs += n.carbs;
+    fat += n.fat;
+  }
+  return { kcal: Math.round(kcal), protein: Math.round(protein), carbs: Math.round(carbs), fat: Math.round(fat) };
+}
+
+// One line per item for the model, indexed so it can reference items by number
+// (far more reliable than echoing long names back exactly).
+function itemLine(p: FoodProduct, i: number): string | null {
+  const n = p.serving ?? p.per100g;
+  if (!n) return null;
+  const basis = p.serving ? p.serving.label : `100${p.basisUnit}`;
+  return `[${i}] ${p.name} (${basis}): ${Math.round(n.kcal)} cal, ${Math.round(n.protein)}g protein, ${Math.round(
+    n.carbs
+  )}g carbs, ${Math.round(n.fat)}g fat`;
+}
+
+async function recommendMeals(key: string, message: string, items: FoodProduct[]): Promise<Meal[]> {
+  const menu = items
+    .map((p, i) => itemLine(p, i))
+    .filter(Boolean)
+    .join('\n');
+
+  const system =
+    'You help someone decide what to order while eating out. From ONLY the numbered menu items provided, ' +
+    "assemble the best 2 to 3 COMPLETE MEAL options for the user's goal. Build a full meal (typically an " +
+    'entree plus a side and/or a drink when suitable items exist), not a single item, unless only single ' +
+    'items are available. Do not list the whole menu; pick only the best meals. Never invent items. ' +
+    'Reference items by their [index] number. ' +
+    'Reply ONLY with compact JSON, no prose and no code fence: ' +
+    '{"meals":[{"title":"<short meal name>","reason":"<one short plain-text sentence, no markdown>","items":[<indices>]}]}.';
+  const user = `Goal: ${message}\n\nMenu items (choose only from these indices):\n${menu}`;
+  const raw = await callClaude(key, system, user, 500);
+
+  const parsed = parseJsonObject(raw);
+  const rawMeals: any[] = Array.isArray(parsed?.meals) ? parsed.meals : [];
+
+  const meals: Meal[] = [];
+  for (const rm of rawMeals.slice(0, 3)) {
+    const idxs: any[] = Array.isArray(rm?.items) ? rm.items : [];
+    const seen = new Set<number>();
+    const chosen: FoodProduct[] = [];
+    for (const ix of idxs) {
+      const i = typeof ix === 'number' ? ix : parseInt(String(ix), 10);
+      if (Number.isInteger(i) && i >= 0 && i < items.length && !seen.has(i)) {
+        seen.add(i);
+        chosen.push(items[i]);
+      }
+    }
+    if (chosen.length === 0) continue;
+    const totals = mealNutrition(chosen);
+    const title =
+      typeof rm?.title === 'string' && rm.title.trim() ? stripMd(rm.title).slice(0, 80) : chosen[0].name;
+    const reason = typeof rm?.reason === 'string' ? stripMd(rm.reason).slice(0, 160) : '';
+    meals.push({ title, reason, items: chosen, ...totals });
+  }
+  return meals;
 }
