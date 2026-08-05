@@ -11,7 +11,7 @@ import { InstallScreen } from '@/components/install-screen';
 import { ProfileForm } from '@/components/profile-form';
 import { WelcomeScreen } from '@/components/welcome-screen';
 import { Colors } from '@/constants/theme';
-import { readInstallState } from '@/lib/pwa';
+import { hasSeenInstall, markInstallSeen, readInstallState } from '@/lib/pwa';
 import { CustomFoodsProvider, useCustomFoods } from '@/context/custom-foods-context';
 import { LogProvider, useLog } from '@/context/log-context';
 import { ProfileProvider, useProfile } from '@/context/profile-context';
@@ -72,8 +72,9 @@ function RootLayoutInner() {
   const ready = profileHydrated && logHydrated && weightHydrated && foodsHydrated && themeHydrated;
   // Only shown on a first run, before any profile exists.
   const [startedSetup, setStartedSetup] = useState(false);
-  // After onboarding, offer "Add to Home Screen" once on eligible web builds.
-  const [installEligible] = useState(() => readInstallState().eligible);
+  // Offer "Add to Home Screen" once on eligible web builds (fresh onboarders and
+  // existing not-yet-installed users), until dismissed.
+  const [installEligible] = useState(() => readInstallState().eligible && !hasSeenInstall());
   const [installDone, setInstallDone] = useState(false);
 
   // Keep the splash up until stored data is loaded, so returning users never
@@ -88,9 +89,9 @@ function RootLayoutInner() {
 
   const renderRoot = () => {
     if (profile) {
-      // Fresh onboarders on eligible web see the install steps once, then the app.
-      if (startedSetup && installEligible && !installDone) {
-        return <InstallScreen onContinue={() => setInstallDone(true)} />;
+      // Show the install steps once on eligible web, then the app.
+      if (installEligible && !installDone) {
+        return <InstallScreen onContinue={() => { markInstallSeen(); setInstallDone(true); }} />;
       }
       return <AppTabs />;
     }
