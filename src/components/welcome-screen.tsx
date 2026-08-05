@@ -1,10 +1,11 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { A as Animated } from '@/lib/a';
 import { wa } from '@/lib/anim';
 import { appear } from '@/lib/appear';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Spacing, ThemeColors } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/use-theme-colors';
@@ -14,9 +15,45 @@ const RING_STROKE = 12;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const CIRC = 2 * Math.PI * RING_RADIUS;
 
+// True only on the web build, on a touch device, and when the app isn't already
+// running as an installed PWA — i.e. exactly when "Add to Home Screen" helps.
+function useInstallHint() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    try {
+      const mm = (q: string) => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(q).matches : false);
+      const standalone = mm('(display-mode: standalone)') || (typeof navigator !== 'undefined' && (navigator as any).standalone === true);
+      const coarse = mm('(pointer: coarse)');
+      setShow(!standalone && coarse);
+    } catch {
+      // matchMedia not available; leave the hint hidden.
+    }
+  }, []);
+  return show;
+}
+
+// iOS-style share glyph (a tray with an up arrow) to anchor the hint.
+function ShareIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 3v11" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8.5 6.5 12 3l3.5 3.5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d="M7 10H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function WelcomeScreen({ onStart }: { onStart: () => void }) {
   const colors = useThemeColors();
   const styles = createStyles(colors);
+  const showInstall = useInstallHint();
 
   const features = [
     { color: colors.protein, title: 'Track every macro', body: 'Calories, protein, carbs and fat at a glance.' },
@@ -80,6 +117,15 @@ export function WelcomeScreen({ onStart }: { onStart: () => void }) {
             <Text style={styles.buttonText}>Get started</Text>
           </TouchableOpacity>
           <Text style={styles.footnote}>Takes about a minute. Everything stays on your device.</Text>
+          {showInstall && (
+            <View style={styles.installHint}>
+              <ShareIcon color={colors.accent} />
+              <Text style={styles.installText}>
+                Tap <Text style={styles.installStrong}>Share</Text>, then{' '}
+                <Text style={styles.installStrong}>Add to Home Screen</Text>, to run it full-screen like an app.
+              </Text>
+            </View>
+          )}
         </Animated.View>
       </SafeAreaView>
     </View>
@@ -116,5 +162,19 @@ function createStyles(colors: ThemeColors) {
     },
     buttonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
     footnote: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: Spacing.three },
+    installHint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.two,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.cardElevated,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      marginTop: Spacing.three,
+    },
+    installText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 17 },
+    installStrong: { color: colors.text, fontWeight: '700' },
   });
 }
