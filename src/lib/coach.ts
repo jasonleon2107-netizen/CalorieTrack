@@ -1,13 +1,22 @@
 import { Platform } from 'react-native';
 
-import type { FoodProduct } from '@/lib/food';
+// One food in a recommended meal, already scaled to its chosen portion. Every
+// number is computed server-side from the real food database, never the model.
+export type CoachMealItem = {
+  name: string;
+  amount: string; // e.g. "150 g", "1.5× 1 sandwich"
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
 
-// A complete recommended meal: a group of REAL menu items with server-summed
-// totals. Numbers come from the food database, never the model.
+// A complete recommended meal (an ordered restaurant combo or a homemade recipe)
+// with server-summed totals.
 export type CoachMeal = {
   title: string;
   reason: string;
-  items: FoodProduct[];
+  items: CoachMealItem[];
   kcal: number;
   protein: number;
   carbs: number;
@@ -16,7 +25,6 @@ export type CoachMeal = {
 
 // Shape returned by the meal-advisor serverless function.
 export type CoachResponse = {
-  query?: string;
   restaurant?: boolean;
   meals: CoachMeal[];
   // Present (with meals empty) when there was nothing useful to recommend.
@@ -57,7 +65,6 @@ export async function askMealAdvisor(message: string, signal?: AbortSignal): Pro
   }
 
   return {
-    query: typeof data?.query === 'string' ? data.query : undefined,
     restaurant: data?.restaurant === true,
     meals: Array.isArray(data?.meals) ? data.meals : [],
     note: typeof data?.note === 'string' ? data.note : undefined,

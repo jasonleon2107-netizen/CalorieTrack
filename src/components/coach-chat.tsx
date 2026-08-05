@@ -28,12 +28,8 @@ import { useCustomFoods } from '@/context/custom-foods-context';
 import { dateKey, defaultMealForNow, MEALS, MealCategory, useLog } from '@/context/log-context';
 import { wa } from '@/lib/anim';
 import { askMealAdvisor, CoachMeal } from '@/lib/coach';
-import { FoodProduct } from '@/lib/food';
 import { selectionHaptic, successHaptic } from '@/lib/haptics';
-import { round } from '@/lib/health';
 import { Dropdown } from './dropdown';
-
-type Draft = { name: string; kcal: number; proteinG: number; carbsG: number; fatG: number };
 
 type Msg =
   | { id: string; role: 'user'; text: string }
@@ -53,22 +49,6 @@ let msgCounter = 0;
 const mkId = () => `m-${Date.now()}-${msgCounter++}`;
 
 const mealLabel = (m: MealCategory) => MEALS.find((x) => x.key === m)?.label ?? 'today';
-
-// One serving of an item, ready to log. Prefers the per-serving figure (what you
-// actually order); falls back to the per-100 basis when that is all we have.
-function servingDraft(p: FoodProduct): Draft | null {
-  const n = p.serving ?? p.per100g;
-  if (!n) return null;
-  return {
-    name: p.name,
-    kcal: round(n.kcal),
-    proteinG: round(n.protein),
-    carbsG: round(n.carbs),
-    fatG: round(n.fat),
-  };
-}
-
-const itemKcal = (p: FoodProduct) => round((p.serving ?? p.per100g)?.kcal ?? 0);
 
 export function CoachChat({ colors, onClose, onLogged }: { colors: ThemeColors; onClose: () => void; onLogged?: () => void }) {
   const styles = createStyles(colors);
@@ -118,9 +98,8 @@ export function CoachChat({ colors, onClose, onLogged }: { colors: ThemeColors; 
   const logMeal = (m: CoachMeal) => {
     const key = dateKey(new Date());
     const ids: string[] = [];
-    for (const p of m.items) {
-      const d = servingDraft(p);
-      if (d) ids.push(addEntry(key, { ...d, meal }));
+    for (const it of m.items) {
+      ids.push(addEntry(key, { name: it.name, meal, kcal: it.kcal, proteinG: it.protein, carbsG: it.carbs, fatG: it.fat }));
     }
     if (ids.length === 0) return;
     successHaptic();
@@ -346,12 +325,15 @@ function MealCard({
       {meal.reason.length > 0 && <Text style={styles.cardReason}>{meal.reason}</Text>}
 
       <View style={styles.itemList}>
-        {meal.items.map((p, i) => (
-          <View key={`${p.name}-${i}`} style={styles.itemRow}>
-            <Text style={styles.itemName} numberOfLines={2}>
-              {p.name}
-            </Text>
-            <Text style={styles.itemKcal}>{itemKcal(p)} cal</Text>
+        {meal.items.map((it, i) => (
+          <View key={`${it.name}-${i}`} style={styles.itemRow}>
+            <View style={styles.itemInfo}>
+              <Text style={styles.itemName} numberOfLines={2}>
+                {it.name}
+              </Text>
+              <Text style={styles.itemAmount}>{it.amount}</Text>
+            </View>
+            <Text style={styles.itemKcal}>{it.kcal} cal</Text>
           </View>
         ))}
       </View>
@@ -439,9 +421,11 @@ function createStyles(colors: ThemeColors) {
     cardTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '700' },
     cardKcal: { color: colors.accent, fontSize: 15, fontWeight: '800', fontFamily: roundedFont },
     cardReason: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
-    itemList: { marginTop: Spacing.two, gap: 4 },
+    itemList: { marginTop: Spacing.two, gap: 6 },
     itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
-    itemName: { flex: 1, color: colors.text, fontSize: 14 },
+    itemInfo: { flex: 1, minWidth: 0 },
+    itemName: { color: colors.text, fontSize: 14 },
+    itemAmount: { color: colors.muted, fontSize: 11, marginTop: 1, fontFamily: roundedFont },
     itemKcal: { color: colors.muted, fontSize: 12, fontFamily: roundedFont },
     macroRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.two },
     macro: { fontSize: 12, fontWeight: '700', fontFamily: roundedFont },
