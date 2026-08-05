@@ -16,6 +16,7 @@ import { CustomFoodsProvider, useCustomFoods } from '@/context/custom-foods-cont
 import { LogProvider, useLog } from '@/context/log-context';
 import { ProfileProvider, useProfile } from '@/context/profile-context';
 import { ThemeProvider, useThemeMode } from '@/context/theme-context';
+import { WaterProvider, useWater } from '@/context/water-context';
 import { WeightProvider, useWeight } from '@/context/weight-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -68,8 +69,9 @@ function RootLayoutInner() {
   const { hydrated: logHydrated } = useLog();
   const { hydrated: weightHydrated } = useWeight();
   const { hydrated: foodsHydrated } = useCustomFoods();
+  const { hydrated: waterHydrated } = useWater();
   const { scheme, hydrated: themeHydrated } = useThemeMode();
-  const ready = profileHydrated && logHydrated && weightHydrated && foodsHydrated && themeHydrated;
+  const ready = profileHydrated && logHydrated && weightHydrated && foodsHydrated && waterHydrated && themeHydrated;
   // Only shown on a first run, before any profile exists.
   const [startedSetup, setStartedSetup] = useState(false);
   // Offer "Add to Home Screen" once on eligible web builds (fresh onboarders and
@@ -118,7 +120,9 @@ export default function RootLayout() {
           <LogProvider>
             <WeightProvider>
               <CustomFoodsProvider>
-                <RootLayoutInner />
+                <WaterProvider>
+                  <RootLayoutInner />
+                </WaterProvider>
               </CustomFoodsProvider>
             </WeightProvider>
           </LogProvider>

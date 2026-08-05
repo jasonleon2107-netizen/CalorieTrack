@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -14,9 +14,11 @@ import { CoachChat } from '@/components/coach-chat';
 import { Sheet } from '@/components/sheet';
 import { EntryRow } from '@/components/entry-row';
 import { MacroBar } from '@/components/macro-bar';
+import { WaterTracker } from '@/components/water-tracker';
 import { roundedFont, Spacing, ThemeColors } from '@/constants/theme';
 import { dateKey, defaultMealForNow, MEALS, MealCategory, useLog, type RecentFood } from '@/context/log-context';
 import { useProfile } from '@/context/profile-context';
+import { useWater } from '@/context/water-context';
 import { useThemeColors } from '@/hooks/use-theme-colors';
 import { round } from '@/lib/health';
 import { computeStreaks } from '@/lib/streak';
@@ -44,6 +46,7 @@ export default function TodayScreen() {
   const styles = createStyles(colors);
   const { goalKcal, macros } = useProfile();
   const { entriesFor, addEntry, addEntries, removeEntry, recents, loggedDateKeys, milestones, markMilestone } = useLog();
+  const { ouncesFor, setOunces } = useWater();
   const [toast, setToast] = useState<string | null>(null);
   const milestoneSeeded = useRef(false);
 
@@ -148,10 +151,16 @@ export default function TodayScreen() {
     setPulseKey((k) => k + 1);
   };
 
+  // The day-swipe gesture wraps the scroll view on native, but on web that Pan
+  // handler swallows vertical scrolling (you couldn't scroll the day's meals).
+  // Web navigates days with the ‹ › arrows instead, so drop the wrapper there.
+  const SwipeWrap: any = Platform.OS === 'web' ? Fragment : GestureDetector;
+  const swipeProps: any = Platform.OS === 'web' ? {} : { gesture: daySwipe };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <GestureDetector gesture={daySwipe}>
+        <SwipeWrap {...swipeProps}>
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: listBottomPad }]}
           showsVerticalScrollIndicator={false}>
@@ -247,8 +256,10 @@ export default function TodayScreen() {
               );
             })
           )}
+
+          <WaterTracker colors={colors} ounces={ouncesFor(key)} onChange={(oz) => setOunces(key, oz)} />
         </ScrollView>
-        </GestureDetector>
+        </SwipeWrap>
 
         <TouchableOpacity style={[styles.coachPill, { bottom: fabBottom }]} onPress={() => setCoaching(true)} activeOpacity={0.85}>
           <Text style={styles.coachPillIcon}>✦</Text>

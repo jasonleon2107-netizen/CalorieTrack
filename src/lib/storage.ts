@@ -10,6 +10,7 @@ export const StorageKeys = {
   recents: 'ct:recents:v1',
   milestones: 'ct:milestones:v1',
   theme: 'ct:theme:v1',
+  water: 'ct:water:v1',
 } as const;
 
 export async function loadJSON<T>(key: string): Promise<T | null> {
